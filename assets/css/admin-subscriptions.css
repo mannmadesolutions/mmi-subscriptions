@@ -1,0 +1,129 @@
+/**
+ * MMI Subscriptions — single-subscription admin screen.
+ *
+ * Layout only; colors/badges/cards come from mmi-suite-common.css tokens.
+ */
+
+/* Key/value grid for the Details and Schedule boxes. */
+.mmisub-details {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 16px 24px;
+	margin: 0;
+}
+
+.mmisub-details--stacked {
+	grid-template-columns: 1fr;
+	gap: 10px;
+}
+
+.mmisub-details dt {
+	margin-bottom: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+	text-transform: uppercase;
+	color: var(--mmi-text-secondary);
+}
+
+.mmisub-details dd {
+	margin: 0;
+	font-size: 14px;
+}
+
+/* Sidebar forms: stacked, full-width controls. */
+.mmisub-form {
+	margin: 0;
+}
+
+.mmisub-form-divided {
+	margin: 16px -12px 0;
+	padding: 16px 12px 0;
+	border-top: 1px solid var(--mmi-gray-300);
+}
+
+.mmisub-field {
+	margin: 0 0 12px;
+}
+
+.mmisub-field label {
+	display: block;
+	margin-bottom: 4px;
+	font-weight: 600;
+}
+
+.mmisub-field select,
+.mmisub-field input,
+.mmisub-field textarea {
+	width: 100%;
+	max-width: 100%;
+}
+
+.mmisub-form-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 12px;
+	margin: 0;
+}
+
+.mmisub-form-actions label {
+	margin-right: auto;
+}
+
+/* Tables sit flush against the postbox edges. */
+.mmisub-inside-flush {
+	margin: 0;
+	padding: 0;
+	overflow-x: auto;
+}
+
+.mmisub-table {
+	border: 0;
+	box-shadow: none;
+}
+
+.mmisub-table .mmisub-col-num {
+	text-align: right;
+	white-space: nowrap;
+}
+
+.mmisub-table tfoot th,
+.mmisub-table tfoot td {
+	font-weight: 400;
+}
+
+.mmisub-empty {
+	margin: 0;
+	padding: 12px;
+	color: var(--mmi-text-secondary);
+}
+
+/* Notes feed. */
+.mmisub-note-form {
+	margin-bottom: 16px;
+}
+
+.mmisub-notes {
+	margin: 0;
+	border-top: 1px solid var(--mmi-gray-300);
+}
+
+.mmisub-note {
+	margin: 0;
+	padding: 10px 0;
+	border-bottom: 1px solid var(--mmi-gray-300);
+}
+
+.mmisub-note:last-child {
+	border-bottom: 0;
+}
+
+.mmisub-note-content p {
+	margin: 0;
+}
+
+.mmisub-note--customer {
+	padding-left: 10px;
+	border-left: 3px solid var(--mmi-info);
+}
