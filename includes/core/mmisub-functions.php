@@ -553,6 +553,9 @@ function mmisub_get_allowed_switch_modes(): array {
 /** MMI_Settings key holding the obfuscated URL of the site allowed to charge renewals. */
 const MMISUB_SITE_URL_LOCK_KEY = 'mmi_subs_site_url_lock';
 
+/** Marker spliced into the stored lock so a search-replace can't rewrite it. */
+const MMISUB_SITE_URL_LOCK_MARKER = '_[mmisub_siteurl]_';
+
 /**
  * Returns the current site URL with a marker spliced into its middle, so a
  * database search-replace during a clone/migration (which rewrites plain URLs)
@@ -562,7 +565,23 @@ const MMISUB_SITE_URL_LOCK_KEY = 'mmi_subs_site_url_lock';
  */
 function mmisub_get_site_url_lock_value(): string {
 	$url = get_site_url();
-	return substr_replace( $url, '_[mmisub_siteurl]_', (int) floor( strlen( $url ) / 2 ), 0 );
+	return substr_replace( $url, MMISUB_SITE_URL_LOCK_MARKER, (int) floor( strlen( $url ) / 2 ), 0 );
+}
+
+/**
+ * Reduces a site URL (or a stored lock) to host + path for comparison.
+ *
+ * get_site_url() takes its scheme from the current request, so CLI cron
+ * (no HTTPS server var) sees http:// on an https site. Comparing schemes
+ * made the live store look like a copy and skipped real renewals.
+ *
+ * @param  string $url
+ * @return string
+ */
+function mmisub_normalize_site_url_for_lock( string $url ): string {
+	$url = str_replace( MMISUB_SITE_URL_LOCK_MARKER, '', trim( $url ) );
+	$url = (string) preg_replace( '#^[a-z][a-z0-9+.-]*://#i', '', $url );
+	return untrailingslashit( strtolower( $url ) );
 }
 
 /**
@@ -580,7 +599,8 @@ function mmisub_is_duplicate_site(): bool {
 		MMI_Settings::set( MMISUB_SITE_URL_LOCK_KEY, mmisub_get_site_url_lock_value() );
 		return false;
 	}
-	return (bool) apply_filters( 'mmisub_is_duplicate_site', $stored !== mmisub_get_site_url_lock_value() );
+	$is_duplicate = mmisub_normalize_site_url_for_lock( $stored ) !== mmisub_normalize_site_url_for_lock( get_site_url() );
+	return (bool) apply_filters( 'mmisub_is_duplicate_site', $is_duplicate );
 }
 
 /**

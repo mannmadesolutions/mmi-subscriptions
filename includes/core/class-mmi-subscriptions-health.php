@@ -188,7 +188,7 @@ class MMI_Subscriptions_Health {
 
 	private static function render_duplicate_site_notice(): void {
 		$stored = (string) MMI_Settings::get( MMISUB_SITE_URL_LOCK_KEY, '' );
-		$live   = str_replace( '_[mmisub_siteurl]_', '', $stored );
+		$live   = str_replace( MMISUB_SITE_URL_LOCK_MARKER, '', $stored );
 		?>
 		<div class="notice notice-warning">
 			<p>
