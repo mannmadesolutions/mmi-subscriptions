@@ -11,15 +11,17 @@
  *
  * Run after any change to mmi-subscriptions (or anything hooked to renewals):
  *   wp eval-file wp-content/plugins/mmi-subscriptions/scripts/renewal-e2e-check.php
- * Exit code 0 = pass, 1 = fail. Takes 1–5 minutes. With DISABLE_WP_CRON a
+ * Exit code 0 = pass, 1 = fail, 2 = renewal cycle passed but no attempt ran
+ * through cron (the async runner got there first); run it again. Takes 1–15 minutes. With DISABLE_WP_CRON a
  * system crontab must run wp-cron; otherwise the check pings wp-cron.php
  * itself, the way a page visit would.
  *
  * Isolation: guest customer with an undeliverable .invalid email, a fake
  * gateway (mmisub_selftest) handled by a temporary mu-plugin that marks the
  * renewal paid without any real charge, mail to/about the test orders dropped,
- * test orders kept out of the ShipStation export. While it runs, Action
- * Scheduler's async runner is off so the renewal must go through cron. The mu-plugin self-disables
+ * test orders kept out of the ShipStation export. It never turns off Action
+ * Scheduler's async runner: that sends every job through the cron's time
+ * limit, and one long batch then stalls the whole queue (2026-10-15). The mu-plugin self-disables
  * after 10 minutes even if cleanup never runs.
  *
  * @package MannMade\Admin
@@ -75,8 +77,6 @@ function mmisub_e2e_is_test_order( \$order ): bool {
 add_action( 'woocommerce_scheduled_subscription_payment_{$GLOBALS['mmisub_e2e_gateway']}', static function ( \$amount, \$order ) {
 	\$order->payment_complete( 'mmisub-selftest-' . time() );
 }, 10, 2 );
-// Force due actions through cron, the path real renewals take when nobody is browsing.
-add_filter( 'action_scheduler_allow_async_request_runner', '__return_false' );
 add_filter( 'woocommerce_shipstation_export_order', static function ( \$export, \$order_id ) {
 	return mmisub_e2e_is_test_order( \$order_id ) ? false : \$export;
 }, 10, 2 );
@@ -271,7 +271,8 @@ try {
 		}
 		mmisub_e2e_say( 'That renewal ran via the async runner; renewing again to cover cron.' );
 	}
-	mmisub_e2e_check( in_array( 'WP Cron', $contexts, true ), 'At least one renewal ran through cron (seen: ' . implode( ', ', $contexts ) . ')' );
+	$cron_covered = in_array( 'WP Cron', $contexts, true );
+	mmisub_e2e_say( ( $cron_covered ? 'PASS ' : 'WARN ' ) . 'Renewal through cron (seen: ' . implode( ', ', $contexts ) . ')' );
 } catch ( Throwable $e ) {
 	mmisub_e2e_check( false, 'Exception: ' . $e->getMessage() );
 } finally {
@@ -281,6 +282,10 @@ try {
 if ( $mmisub_e2e['fails'] ) {
 	mmisub_e2e_say( 'RESULT: FAIL (' . count( $mmisub_e2e['fails'] ) . ')' );
 	exit( 1 );
+}
+if ( empty( $cron_covered ) ) {
+	mmisub_e2e_say( 'RESULT: PASS, but the cron path was not exercised (async runner claimed every attempt). Run again.' );
+	exit( 2 );
 }
 mmisub_e2e_say( 'RESULT: PASS' );
 exit( 0 );

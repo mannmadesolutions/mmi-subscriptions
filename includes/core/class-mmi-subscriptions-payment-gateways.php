@@ -32,6 +32,10 @@ class MMI_Subscription_Payment_Gateways {
 		// Change Payment Method support (My Account): saved Stripe token → renewal meta.
 		add_filter( 'mmi_subscription_payment_token_meta_stripe', [ self::class, 'stripe_token_meta' ], 10, 3 );
 
+		// Tag subscription charges payment_type=recurring, as Stripe does under WCS.
+		add_filter( 'wc_stripe_payment_metadata', [ self::class, 'stripe_recurring_metadata' ], 10, 2 );
+		add_filter( 'wc_stripe_intent_metadata', [ self::class, 'stripe_recurring_metadata' ], 10, 2 );
+
 		// When WCS is active, ensure WCS-compatible gateways (e.g. Stripe) have their
 		// subscription support flags populated before checkout filtering runs.  This
 		// guards against the plugin load-order race where a gateway's constructor calls
@@ -106,6 +110,30 @@ class MMI_Subscription_Payment_Gateways {
 		}
 
 		return $available_gateways;
+	}
+
+	// ── Stripe charge metadata ───────────────────────────────────────────────
+
+	/**
+	 * Marks renewal and subscription sign-up charges payment_type=recurring.
+	 *
+	 * woocommerce-gateway-stripe adds this only when the WCS functions exist,
+	 * so without it a Radar rule cannot tell a subscriber's renewal from a
+	 * stranger's first purchase. A rule meant for new customers held
+	 * #175493's off-session renewal for manual review (2026-10-15); with the
+	 * tag, rules can exclude `::payment_type:: = 'recurring'`.
+	 *
+	 * @param  array             $metadata
+	 * @param  WC_Order|int|null $order
+	 * @return array
+	 */
+	public static function stripe_recurring_metadata( $metadata, $order = null ): array {
+		$metadata = (array) $metadata;
+		$order    = is_numeric( $order ) ? wc_get_order( (int) $order ) : $order;
+		if ( $order instanceof WC_Order && ( mmisub_order_contains_renewal( $order ) || mmisub_get_subscriptions_for_order( $order ) ) ) {
+			$metadata['payment_type'] = 'recurring';
+		}
+		return $metadata;
 	}
 
 	// ── Change payment method: token → renewal meta ─────────────────────────
