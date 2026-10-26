@@ -6,7 +6,7 @@
  *              Mirrors WooCommerce Subscriptions logic independently — no WCS required.
  *              Supports any WCS-compatible payment gateway, free trials, plan switching,
  *              and full customer self-service via My Account.
- * Version: 2.8.2
+ * Version: 2.8.3
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Author:      MannMade Solutions
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'MMI_SUBSCRIPTIONS_VERSION',    '2.8.2' );
+define( 'MMI_SUBSCRIPTIONS_VERSION',    '2.8.3' );
 define( 'MMI_SUBSCRIPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MMI_SUBSCRIPTIONS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'MMI_SUBSCRIPTIONS_FILE',       __FILE__ );

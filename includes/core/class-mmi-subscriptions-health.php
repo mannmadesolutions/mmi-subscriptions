@@ -117,8 +117,7 @@ class MMI_Subscriptions_Health {
 			]
 		);
 		foreach ( $candidates as $sub_id ) {
-			$queued = as_next_scheduled_action( MMI_Subscription_Scheduler::HOOK_PAYMENT, [ 'subscription_id' => (int) $sub_id ], MMI_Subscription_Scheduler::ACTION_GROUP );
-			if ( ! $queued ) {
+			if ( ! self::has_queued_renewal( (int) $sub_id ) ) {
 				$overdue[] = (int) $sub_id;
 			}
 		}
@@ -126,6 +125,24 @@ class MMI_Subscriptions_Health {
 		$issues = [ 'failed' => $failed, 'overdue' => $overdue ];
 		set_transient( self::CACHE_KEY, $issues, 10 * MINUTE_IN_SECONDS );
 		return $issues;
+	}
+
+	private static function has_queued_renewal( int $sub_id ): bool {
+		return (bool) as_next_scheduled_action( MMI_Subscription_Scheduler::HOOK_PAYMENT, [ 'subscription_id' => $sub_id ], MMI_Subscription_Scheduler::ACTION_GROUP );
+	}
+
+	/**
+	 * Re-checks a cached overdue ID against its current state, so a subscription
+	 * cancelled, rescheduled or given a renewal since the scan drops out at once
+	 * instead of lingering in the notice until the cache expires.
+	 */
+	private static function is_still_overdue( int $sub_id ): bool {
+		$sub = wc_get_order( $sub_id );
+		if ( ! $sub instanceof MMI_Subscription || 'mmisub-active' !== $sub->get_status() ) {
+			return false;
+		}
+		$next = $sub->get_date( 'next_payment' );
+		return $next > 0 && $next <= time() - self::OVERDUE_GRACE && ! self::has_queued_renewal( $sub_id );
 	}
 
 	// ── Notices ───────────────────────────────────────────────────────────────
@@ -142,7 +159,8 @@ class MMI_Subscriptions_Health {
 		$issues    = self::get_issues();
 		$dismissed = (int) get_user_meta( get_current_user_id(), self::DISMISSED_META, true );
 		$failed    = array_filter( $issues['failed'], static fn( array $f ): bool => $f['time'] > $dismissed );
-		if ( ! $failed && ! $issues['overdue'] ) {
+		$overdue   = array_filter( $issues['overdue'], [ self::class, 'is_still_overdue' ] );
+		if ( ! $failed && ! $overdue ) {
 			return;
 		}
 
@@ -171,10 +189,10 @@ class MMI_Subscriptions_Health {
 				&middot; <a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-status&tab=action-scheduler&status=failed&s=mmi_scheduled_subscription' ) ); ?>"><?php esc_html_e( 'View logs', 'mmi-subscriptions' ); ?></a>
 			</p>
 			<?php endif; ?>
-			<?php if ( $issues['overdue'] ) : ?>
+			<?php if ( $overdue ) : ?>
 			<p>
 				<?php esc_html_e( 'Active subscriptions past their next payment date with no renewal queued:', 'mmi-subscriptions' ); ?>
-				<?php foreach ( $issues['overdue'] as $sub_id ) : ?>
+				<?php foreach ( $overdue as $sub_id ) : ?>
 					<a href="<?php echo esc_url( $edit( $sub_id ) ); ?>">#<?php echo (int) $sub_id; ?></a>
 				<?php endforeach; ?>
 			</p>
