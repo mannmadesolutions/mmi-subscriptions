@@ -118,10 +118,27 @@ class MMI_Subscriptions_Coupons {
 		// to whatever a preceding filter (e.g. WooCommerce Subscriptions) decided. WCS returns
 		// false for MMI subscription products because it only knows about its own product class.
 		if ( in_array( $coupon->get_discount_type(), self::all_types(), true ) ) {
-			return mmisub_is_subscription_product( $product );
+			return mmisub_is_subscription_product( $product ) && self::product_in_coupon_scope( $product, $coupon );
 		}
 
 		return $is_valid;
+	}
+
+	/**
+	 * The coupon's own product and category limits, as WooCommerce core applies them.
+	 * Re-checked here because validate_coupon_for_product() replaces the earlier verdict.
+	 */
+	private static function product_in_coupon_scope( WC_Product $product, WC_Coupon $coupon ): bool {
+		$ids  = array_filter( [ $product->get_id(), $product->get_parent_id() ] );
+		$cats = wc_get_product_cat_ids( $product->get_parent_id() ?: $product->get_id() );
+
+		$limited = $coupon->get_product_ids() || $coupon->get_product_categories();
+		$listed  = array_intersect( $ids, $coupon->get_product_ids() ) || array_intersect( $cats, $coupon->get_product_categories() );
+		if ( $limited && ! $listed ) {
+			return false;
+		}
+		return ! array_intersect( $ids, $coupon->get_excluded_product_ids() )
+			&& ! array_intersect( $cats, $coupon->get_excluded_product_categories() );
 	}
 
 	/**
