@@ -262,6 +262,9 @@ function mmisub_is_subscription_product( $product ): bool {
 	if ( ! $product instanceof WC_Product ) {
 		return false;
 	}
+	if ( mmisub_is_one_time_variation( $product ) ) {
+		return false;
+	}
 	if ( $product->is_type( [ 'mmi_subscription', 'mmi_variable_subscription', 'mmi_subscription_variation' ] ) ) {
 		return true;
 	}
@@ -273,6 +276,19 @@ function mmisub_is_subscription_product( $product ): bool {
 		return 'mmi_variable_subscription' === WC_Product_Factory::get_product_type( $product->get_parent_id() );
 	}
 	return false;
+}
+
+/**
+ * Checks whether a variation of a variable subscription is sold once instead
+ * of billed per period (a lifetime tier beside yearly ones). Such a variation
+ * is an ordinary purchase everywhere: no subscription, renewal or period text.
+ *
+ * @param  WC_Product $product
+ * @return bool
+ */
+function mmisub_is_one_time_variation( WC_Product $product ): bool {
+	return $product->is_type( [ 'variation', 'mmi_subscription_variation' ] )
+		&& 'yes' === $product->get_meta( MMISUB_ONE_TIME_META, true );
 }
 
 // ── Interval / date helpers ───────────────────────────────────────────────────

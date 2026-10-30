@@ -84,6 +84,12 @@ class MMI_Product_Variable_Subscription extends WC_Product_Variable {
 		if ( '' === $html ) {
 			return '';
 		}
+		// A range that includes a one-time variation isn't all "/ year".
+		foreach ( $this->get_children() as $child_id ) {
+			if ( 'yes' === get_post_meta( $child_id, MMISUB_ONE_TIME_META, true ) ) {
+				return $html;
+			}
+		}
 		return mmisub_get_price_string( $this, $html );
 	}
 }
@@ -740,6 +746,15 @@ add_action( 'woocommerce_product_after_variable_attributes', static function ( i
 		'_subscription_trial_period'    => [ 'label' => __( 'Trial Period', 'mmi-subscriptions' ), 'type' => 'text', 'placeholder' => 'day' ],
 	];
 
+	printf(
+		'<p class="form-row form-row-full"><label><input type="checkbox" name="%1$s[%2$d]" value="yes" %3$s> %4$s</label> %5$s</p>',
+		esc_attr( MMISUB_ONE_TIME_META ),
+		(int) $loop,
+		checked( 'yes', get_post_meta( $variation->ID, MMISUB_ONE_TIME_META, true ), false ),
+		esc_html__( 'One-time purchase', 'mmi-subscriptions' ),
+		wc_help_tip( __( 'Charge the price below once. No subscription is created and nothing renews; the period, length, sign-up fee and trial fields are ignored.', 'mmi-subscriptions' ) )
+	);
+
 	foreach ( $fields as $meta_key => $field ) {
 		$value = get_post_meta( $variation->ID, $meta_key, true );
 		printf(
@@ -772,6 +787,14 @@ add_action( 'woocommerce_save_product_variation', static function ( int $variati
 		if ( isset( $_POST[ $field ][ $loop ] ) ) {
 			update_post_meta( $variation_id, $field, sanitize_text_field( wp_unslash( $_POST[ $field ][ $loop ] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification
 		}
+	}
+
+	// An unticked checkbox posts nothing, so absence means "billed per period".
+	// phpcs:ignore WordPress.Security.NonceVerification
+	if ( isset( $_POST[ MMISUB_ONE_TIME_META ][ $loop ] ) ) {
+		update_post_meta( $variation_id, MMISUB_ONE_TIME_META, 'yes' );
+	} else {
+		delete_post_meta( $variation_id, MMISUB_ONE_TIME_META );
 	}
 
 	// Sync WC's own price meta so get_variation_prices() returns valid values

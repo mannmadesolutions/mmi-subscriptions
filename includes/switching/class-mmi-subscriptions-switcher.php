@@ -18,7 +18,7 @@ class MMI_Subscriptions_Switcher {
 	// ── Bootstrap ─────────────────────────────────────────────────────────────
 
 	public static function init(): void {
-		add_filter( 'woocommerce_add_to_cart_validation',    [ self::class, 'validate_switch_request' ], 10, 3 );
+		add_filter( 'woocommerce_add_to_cart_validation',    [ self::class, 'validate_switch_request' ], 10, 4 );
 		add_filter( 'woocommerce_cart_item_permalink',       [ self::class, 'maybe_remove_permalink' ], 10, 3 );
 		add_action( 'woocommerce_checkout_order_processed',  [ self::class, 'process_switch_checkout' ], 200, 2 );
 		add_action( 'woocommerce_store_api_checkout_order_processed', [ self::class, 'process_switch_checkout_block' ], 200, 1 );
@@ -100,13 +100,14 @@ class MMI_Subscriptions_Switcher {
 	 * @param  int  $quantity
 	 * @return bool
 	 */
-	public static function validate_switch_request( bool $passed, int $product_id, int $quantity ): bool {
+	public static function validate_switch_request( bool $passed, int $product_id, int $quantity, $variation_id = 0 ): bool {
 		$switch_data = WC()->session ? WC()->session->get( 'mmi_switch_subscription' ) : null;
 		if ( ! $switch_data ) {
 			return $passed;
 		}
 
-		$product = wc_get_product( $product_id );
+		// The chosen variation decides: a one-time variation isn't a plan.
+		$product = wc_get_product( (int) $variation_id ?: $product_id );
 		if ( ! $product || ! mmisub_is_subscription_product( $product ) ) {
 			wc_add_notice(
 				__( 'You can only switch to another subscription plan. Please select a subscription product.', 'mmi-subscriptions' ),
