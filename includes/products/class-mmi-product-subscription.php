@@ -90,7 +90,39 @@ class MMI_Product_Variable_Subscription extends WC_Product_Variable {
 				return $html;
 			}
 		}
+		$terms = $this->get_prices_by_term();
+		if ( count( $terms ) > 1 ) {
+			return implode( ' ' . __( 'or', 'mmi-subscriptions' ) . ' ', $terms );
+		}
 		return mmisub_get_price_string( $this, $html );
+	}
+
+	/**
+	 * Formats the variation prices one billing term at a time. A range across terms
+	 * would be wrong: "$39 – $399 / month" reads as up to $399 a month when $399 is yearly.
+	 *
+	 * @return array<string, string> Price HTML keyed by term, e.g. "$39.00 / month".
+	 */
+	private function get_prices_by_term(): array {
+		$amounts = [];
+		$suffix  = [];
+		foreach ( $this->get_variation_prices( true )['price'] as $variation_id => $amount ) {
+			$period   = (string) get_post_meta( $variation_id, '_subscription_period', true ) ?: (string) $this->get_meta( '_subscription_period', true ) ?: 'month';
+			$interval = max( 1, (int) ( get_post_meta( $variation_id, '_subscription_period_interval', true ) ?: $this->get_meta( '_subscription_period_interval', true ) ) );
+			$term     = $interval . ' ' . $period;
+
+			$amounts[ $term ][] = (float) $amount;
+			$suffix[ $term ]    = mmisub_get_period_suffix( $period, $interval );
+		}
+
+		$terms = [];
+		foreach ( $amounts as $term => $prices ) {
+			$low  = min( $prices );
+			$high = max( $prices );
+
+			$terms[ $term ] = ( $low === $high ? wc_price( $low ) : wc_format_price_range( $low, $high ) ) . ' ' . $suffix[ $term ];
+		}
+		return $terms;
 	}
 }
 
@@ -215,6 +247,27 @@ class MMI_Subscriptions_Product {
 // ── Price string helper ──────────────────────────────────────────────────────
 
 /**
+ * Returns what follows a price: "/ month", or "every 2 months" when the interval is over 1.
+ *
+ * @param  string $period   day, week, month or year.
+ * @param  int    $interval Periods between payments.
+ * @return string
+ */
+function mmisub_get_period_suffix( string $period, int $interval = 1 ): string {
+	if ( $interval > 1 ) {
+		return mmisub_get_period_label( $period, $interval );
+	}
+	$period_labels = [
+		'day'   => __( 'day',   'mmi-subscriptions' ),
+		'week'  => __( 'week',  'mmi-subscriptions' ),
+		'month' => __( 'month', 'mmi-subscriptions' ),
+		'year'  => __( 'year',  'mmi-subscriptions' ),
+	];
+	/* translators: %s: billing period label e.g. "month" */
+	return sprintf( _x( '/ %s', 'subscription billing period suffix', 'mmi-subscriptions' ), $period_labels[ $period ] ?? $period );
+}
+
+/**
  * Wraps a formatted price HTML string with subscription billing period info.
  *
  * Produces strings like:
@@ -234,19 +287,7 @@ function mmisub_get_price_string( WC_Product $product, string $price_html ): str
 	$period   = (string) $product->get_meta( '_subscription_period', true ) ?: 'month';
 	$interval = max( 1, (int) $product->get_meta( '_subscription_period_interval', true ) );
 
-	// "/ month" for interval = 1, "every 2 months" for interval > 1.
-	if ( 1 === $interval ) {
-		$period_labels = [
-			'day'   => __( 'day',   'mmi-subscriptions' ),
-			'week'  => __( 'week',  'mmi-subscriptions' ),
-			'month' => __( 'month', 'mmi-subscriptions' ),
-			'year'  => __( 'year',  'mmi-subscriptions' ),
-		];
-		/* translators: %s: billing period label e.g. "month" */
-		$period_str = sprintf( _x( '/ %s', 'subscription billing period suffix', 'mmi-subscriptions' ), $period_labels[ $period ] ?? $period );
-	} else {
-		$period_str = mmisub_get_period_label( $period, $interval );
-	}
+	$period_str = mmisub_get_period_suffix( $period, $interval );
 
 	/* translators: 1: formatted price HTML e.g. "$49.00"; 2: billing period string e.g. "/ month" */
 	$price_string = sprintf( _x( '%1$s %2$s', 'subscription price string', 'mmi-subscriptions' ), $price_html, $period_str );
