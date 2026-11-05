@@ -25,15 +25,17 @@ class MMI_Subscriptions_Cart {
 		// Modify cart totals display to show recurring prices.
 		add_action( 'woocommerce_before_calculate_totals', [ self::class, 'set_subscription_prices_for_calculation' ], 10, 1 );
 
-		// Add recurring order total subtotals to cart/checkout display.
-		add_filter( 'woocommerce_cart_total',              [ self::class, 'append_recurring_totals_to_display' ], 10, 1 );
+		// Name the order total for what it is when more charges follow it.
+		add_action( 'woocommerce_cart_totals_before_order_total',  [ self::class, 'start_due_today_label' ] );
+		add_action( 'woocommerce_review_order_before_order_total', [ self::class, 'start_due_today_label' ] );
+		add_action( 'woocommerce_cart_totals_after_order_total',   [ self::class, 'stop_due_today_label' ], 5 );
+		add_action( 'woocommerce_review_order_after_order_total',  [ self::class, 'stop_due_today_label' ], 5 );
 
-		// Add recurring totals table (subtotal, coupon, tax, recurring total) after
-		// the order total row — mirrors WC_Subscriptions_Cart::display_recurring_totals().
+		// List what's billed after today below the order total.
 		add_action( 'woocommerce_cart_totals_after_order_total',   [ self::class, 'display_recurring_totals' ] );
 		add_action( 'woocommerce_review_order_after_order_total',  [ self::class, 'display_recurring_totals' ] );
 
-		// Say what each subscription line bills under its subtotal.
+		// Explain a line subtotal that includes a one-time fee.
 		add_filter( 'woocommerce_cart_item_subtotal', [ self::class, 'add_line_terms' ], 10, 2 );
 
 		// Change "Proceed to checkout" button text for subscription carts.
@@ -128,54 +130,40 @@ class MMI_Subscriptions_Cart {
 	// ── Display ───────────────────────────────────────────────────────────────
 
 	/**
-	 * Appends a recurring total line to the cart total display.
+	 * Starts calling the order total "Total due today". Runs just before that row, so
+	 * only the row's own label changes.
 	 *
-	 * @param  string $total
+	 * @return void
+	 */
+	public static function start_due_today_label(): void {
+		if ( mmisub_cart_contains_subscription() ) {
+			add_filter( 'gettext_woocommerce', [ self::class, 'due_today_label' ], 10, 2 );
+		}
+	}
+
+	/**
+	 * Stops the order total relabelling once that row is out.
+	 *
+	 * @return void
+	 */
+	public static function stop_due_today_label(): void {
+		remove_filter( 'gettext_woocommerce', [ self::class, 'due_today_label' ], 10 );
+	}
+
+	/**
+	 * Relabels the order total.
+	 *
+	 * @param  string $translation
+	 * @param  string $text
 	 * @return string
 	 */
-	public static function append_recurring_totals_to_display( string $total ): string {
-		if ( ! mmisub_cart_contains_subscription() ) {
-			return $total;
-		}
-
-		$recurring = self::get_recurring_total_html();
-		if ( $recurring ) {
-			$total .= '<br><span class="mmi-recurring-total">' . $recurring . '</span>';
-		}
-		return $total;
+	public static function due_today_label( string $translation, string $text ): string {
+		return 'Total' === $text ? __( 'Total due today', 'mmi-subscriptions' ) : $translation;
 	}
 
 	/**
-	 * Builds the "then X / period" string, one amount per billing term, tax included
-	 * to match the Recurring total rows.
-	 *
-	 * @return string  HTML, or empty string if no subscription in cart.
-	 */
-	public static function get_recurring_total_html(): string {
-		$cart = WC()->cart;
-		if ( ! $cart ) {
-			return '';
-		}
-
-		$amounts = [];
-		foreach ( self::get_recurring_groups( $cart ) as $group ) {
-			$amounts[] = self::get_term_price( $group['total'], $group );
-		}
-		if ( ! $amounts ) {
-			return '';
-		}
-
-		return sprintf(
-			/* translators: %s: recurring amounts e.g. "$49.00 / month and $99.00 / year" */
-			__( 'then %s', 'mmi-subscriptions' ),
-			implode( ' ' . __( 'and', 'mmi-subscriptions' ) . ' ', $amounts )
-		);
-	}
-
-	/**
-	 * Outputs the "Recurring totals" rows after the order total row on the cart and
-	 * checkout review tables: subtotal, recurring coupons, tax and recurring total,
-	 * once per billing term, under a "Billed monthly" heading when there's more than one.
+	 * Lists what's billed after today on the cart and checkout review tables, one row per
+	 * subscription: its name, what each payment comes to, and when payments start.
 	 *
 	 * @return void
 	 */
@@ -185,62 +173,20 @@ class MMI_Subscriptions_Cart {
 			return;
 		}
 
-		$groups = self::get_recurring_groups( $cart );
-		if ( ! $groups ) {
+		$lines = self::get_recurring_lines( $cart );
+		if ( ! $lines ) {
 			return;
 		}
-
-		$tax_label = WC()->countries->tax_or_vat();
 		?>
 		<tr class="mmi-recurring-totals-heading">
-			<th colspan="2"><?php esc_html_e( 'Recurring totals', 'mmi-subscriptions' ); ?></th>
+			<th colspan="2"><?php esc_html_e( 'Then billed automatically', 'mmi-subscriptions' ); ?></th>
 		</tr>
-		<?php foreach ( $groups as $group ) : ?>
-			<?php if ( count( $groups ) > 1 ) : ?>
-		<tr class="mmi-recurring-term-heading mmi-recurring-total">
-			<th colspan="2">
-				<?php
-				/* translators: %s: billing period e.g. "monthly" or "every 2 months" */
-				echo esc_html( sprintf( __( 'Billed %s', 'mmi-subscriptions' ), mmisub_get_period_label( $group['period'], $group['interval'] ) ) );
-				?>
-			</th>
-		</tr>
-			<?php endif; ?>
-		<tr class="cart-subtotal mmi-recurring-total">
-			<th><?php esc_html_e( 'Subtotal', 'mmi-subscriptions' ); ?></th>
-			<td data-title="<?php esc_attr_e( 'Subtotal', 'mmi-subscriptions' ); ?>">
-				<?php echo wp_kses_post( self::get_term_price( $group['subtotal'], $group ) ); ?>
-			</td>
-		</tr>
-			<?php foreach ( $group['coupons'] as $code => $discount ) : ?>
-				<?php $coupon_label = wc_cart_totals_coupon_label( new WC_Coupon( $code ), false ); ?>
-		<tr class="cart-discount coupon-<?php echo esc_attr( $code ); ?> mmi-recurring-total">
-			<th><?php echo esc_html( $coupon_label ); ?></th>
-			<td data-title="<?php echo esc_attr( $coupon_label ); ?>">
-				-<?php echo wp_kses_post( self::get_term_price( $discount, $group ) ); ?>
-			</td>
-		</tr>
-			<?php endforeach; ?>
-			<?php if ( $group['tax'] > 0 ) : ?>
-		<tr class="tax-total mmi-recurring-total">
-			<th><?php echo esc_html( $tax_label ); ?></th>
-			<td data-title="<?php echo esc_attr( $tax_label ); ?>">
-				<?php echo wp_kses_post( self::get_term_price( $group['tax'], $group ) ); ?>
-			</td>
-		</tr>
-			<?php endif; ?>
-		<tr class="order-total mmi-recurring-total">
-			<th><?php esc_html_e( 'Recurring total', 'mmi-subscriptions' ); ?></th>
-			<td data-title="<?php esc_attr_e( 'Recurring total', 'mmi-subscriptions' ); ?>">
-				<?php echo wp_kses_post( self::get_term_price( $group['total'], $group ) ); ?>
-				<?php if ( $group['first_renewal'] ) : ?>
-				<br><small>
-					<?php
-					/* translators: %s: date of first renewal */
-					echo esc_html( sprintf( __( 'First renewal: %s', 'mmi-subscriptions' ), date_i18n( wc_date_format(), $group['first_renewal'] ) ) );
-					?>
-				</small>
-				<?php endif; ?>
+		<?php foreach ( $lines as $line ) : ?>
+		<tr class="mmi-recurring-total">
+			<th><?php echo esc_html( $line['name'] ); ?></th>
+			<td data-title="<?php echo esc_attr( $line['name'] ); ?>">
+				<?php echo wp_kses_post( self::get_term_price( $line['total'], $line ) ); ?>
+				<br><small><?php echo wp_kses_post( self::get_line_details( $line ) ); ?></small>
 			</td>
 		</tr>
 		<?php endforeach; ?>
@@ -248,8 +194,30 @@ class MMI_Subscriptions_Cart {
 	}
 
 	/**
-	 * Adds what a subscription line bills under its subtotal, because the subtotal alone
-	 * can't say: "$348.00" is "$49.00 / month + $299.00 setup fee", and "$99.00" could be any term.
+	 * Explains a recurring row: where the amount comes from and when it starts.
+	 *
+	 * @param  array $line One entry of get_recurring_lines().
+	 * @return string
+	 */
+	private static function get_line_details( array $line ): string {
+		$details = [];
+		if ( $line['starts'] ) {
+			/* translators: %s: date of the first automatic payment */
+			$details[] = sprintf( __( 'Starts %s', 'mmi-subscriptions' ), date_i18n( wc_date_format(), $line['starts'] ) );
+		}
+		if ( $line['tax'] > 0 ) {
+			$details[] = wc_prices_include_tax()
+				/* translators: %s: tax amount */
+				? sprintf( __( 'Includes %s tax', 'mmi-subscriptions' ), wc_price( $line['tax'] ) )
+				/* translators: 1: price before tax; 2: tax amount */
+				: sprintf( __( '%1$s + %2$s tax', 'mmi-subscriptions' ), wc_price( $line['net'] ), wc_price( $line['tax'] ) );
+		}
+		return implode( '<br>', $details );
+	}
+
+	/**
+	 * Notes a one-time fee inside a line subtotal, because "$348.00" alone doesn't say why
+	 * it isn't the plan's price.
 	 *
 	 * @param  string $subtotal
 	 * @param  array  $cart_item
@@ -261,31 +229,27 @@ class MMI_Subscriptions_Cart {
 			return $subtotal;
 		}
 
-		$quantity = (int) ( $cart_item['quantity'] ?? 1 );
-		$terms    = wc_price( (float) MMI_Subscriptions_Product::get_price( $product ) * $quantity ) . ' '
-			. mmisub_get_period_suffix( MMI_Subscriptions_Product::get_period( $product ), MMI_Subscriptions_Product::get_interval( $product ) );
-
-		$sign_up_fee = (float) MMI_Subscriptions_Product::get_sign_up_fee( $product );
-		if ( $sign_up_fee > 0 ) {
-			/* translators: 1: recurring price e.g. "$49.00 / month"; 2: one-time fee e.g. "$299.00" */
-			$terms = sprintf( __( '%1$s + %2$s setup fee', 'mmi-subscriptions' ), $terms, wc_price( $sign_up_fee * $quantity ) );
+		$sign_up_fee = (float) MMI_Subscriptions_Product::get_sign_up_fee( $product ) * (int) ( $cart_item['quantity'] ?? 1 );
+		if ( $sign_up_fee <= 0 ) {
+			return $subtotal;
 		}
 
-		return $subtotal . '<br><small class="mmi-cart-item-terms">' . $terms . '</small>';
+		/* translators: %s: one-time fee e.g. "$299.00" */
+		return $subtotal . '<br><small class="mmi-cart-item-terms">' . sprintf( __( 'Includes %s setup fee', 'mmi-subscriptions' ), wc_price( $sign_up_fee ) ) . '</small>';
 	}
 
 	// ── Recurring totals ──────────────────────────────────────────────────────
 
 	/**
-	 * Adds up the recurring amounts one billing term at a time. Each line becomes its own
-	 * subscription (MMI_Subscriptions_Checkout), so lines on different terms never share
-	 * a total: $49 a month and $99 a year are not $148 of anything.
+	 * Works out what each subscription in the cart bills after today. Each line becomes its
+	 * own subscription (MMI_Subscriptions_Checkout), so each is listed on its own: lines on
+	 * different terms never share a total, and $49 a month and $99 a year are not $148 of anything.
 	 *
 	 * @param  WC_Cart $cart
-	 * @return array<string, array{period: string, interval: int, subtotal: float, coupons: array<string, float>, tax: float, total: float, first_renewal: int}>
+	 * @return array<int, array{name: string, period: string, interval: int, net: float, tax: float, total: float, starts: int}>
 	 */
-	private static function get_recurring_groups( WC_Cart $cart ): array {
-		$groups = [];
+	private static function get_recurring_lines( WC_Cart $cart ): array {
+		$lines = [];
 
 		foreach ( $cart->get_cart() as $cart_item ) {
 			$product = $cart_item['data'] ?? null;
@@ -295,41 +259,51 @@ class MMI_Subscriptions_Cart {
 
 			$price    = (float) MMI_Subscriptions_Product::get_price( $product );
 			$quantity = (int) ( $cart_item['quantity'] ?? 1 );
-			if ( $price * $quantity <= 0 ) {
+			$starts   = self::get_first_renewal( $product );
+
+			// Nothing follows today for a free line or one that ends after a single payment.
+			if ( $price * $quantity <= 0 || ! $starts ) {
 				continue;
 			}
 
-			$period   = MMI_Subscriptions_Product::get_period( $product );
-			$interval = MMI_Subscriptions_Product::get_interval( $product );
-			$term     = $interval . ' ' . $period;
-
-			if ( ! isset( $groups[ $term ] ) ) {
-				$groups[ $term ] = [
-					'period'        => $period,
-					'interval'      => $interval,
-					'subtotal'      => 0.0,
-					'coupons'       => [],
-					'tax'           => 0.0,
-					'total'         => 0.0,
-					'first_renewal' => self::get_first_renewal( $product ),
-				];
-			}
-
-			$line_price = $price * $quantity;
-			$discounts  = self::get_recurring_discounts( $cart, $cart_item, $product, $price );
-			foreach ( $discounts as $code => $discount ) {
-				$groups[ $term ]['coupons'][ $code ] = ( $groups[ $term ]['coupons'][ $code ] ?? 0.0 ) + $discount;
-			}
-
-			$net = max( 0.0, $line_price - array_sum( $discounts ) );
+			$net = max( 0.0, $price * $quantity - array_sum( self::get_recurring_discounts( $cart, $cart_item, $product, $price ) ) );
 			$tax = self::get_recurring_tax( $cart, $product, $net );
 
-			$groups[ $term ]['subtotal'] += $line_price;
-			$groups[ $term ]['tax']      += $tax;
-			$groups[ $term ]['total']    += wc_prices_include_tax() ? $net : $net + $tax;
+			$lines[] = [
+				'name'     => self::get_short_name( $product, $cart_item ),
+				'period'   => MMI_Subscriptions_Product::get_period( $product ),
+				'interval' => MMI_Subscriptions_Product::get_interval( $product ),
+				'net'      => $net,
+				'tax'      => $tax,
+				'total'    => wc_prices_include_tax() ? $net : $net + $tax,
+				'starts'   => $starts,
+			];
 		}
 
-		return $groups;
+		return $lines;
+	}
+
+	/**
+	 * Returns a name that fits a totals row: the title up to its first dash, then the chosen
+	 * options, e.g. "Website Care Pro – Essentials". A billing option is left out because
+	 * the row's price already says it.
+	 *
+	 * @param  WC_Product $product
+	 * @param  array      $cart_item
+	 * @return string
+	 */
+	private static function get_short_name( WC_Product $product, array $cart_item ): string {
+		$parts = [ preg_split( '/\s+[-–—]\s+/u', $product->get_title(), 2 )[0] ];
+
+		foreach ( array_keys( (array) ( $cart_item['variation'] ?? [] ) ) as $attribute ) {
+			$attribute = str_replace( 'attribute_', '', (string) $attribute );
+			$option    = 'billing' === $attribute ? '' : $product->get_attribute( $attribute );
+			if ( '' !== $option ) {
+				$parts[] = $option;
+			}
+		}
+
+		return (string) apply_filters( 'mmisub_recurring_line_name', implode( ' – ', $parts ), $product, $cart_item );
 	}
 
 	/**
@@ -419,11 +393,11 @@ class MMI_Subscriptions_Cart {
 	 * Formats an amount with its billing term, e.g. "$49.00 / month".
 	 *
 	 * @param  float $amount
-	 * @param  array $group  One entry of get_recurring_groups().
+	 * @param  array $line   One entry of get_recurring_lines().
 	 * @return string
 	 */
-	private static function get_term_price( float $amount, array $group ): string {
-		return wc_price( $amount ) . ' <span class="subscription-details">' . esc_html( mmisub_get_period_suffix( $group['period'], $group['interval'] ) ) . '</span>';
+	private static function get_term_price( float $amount, array $line ): string {
+		return wc_price( $amount ) . ' <span class="subscription-details">' . esc_html( mmisub_get_period_suffix( $line['period'], $line['interval'] ) ) . '</span>';
 	}
 
 	// ── Checkout button text ──────────────────────────────────────────────────
