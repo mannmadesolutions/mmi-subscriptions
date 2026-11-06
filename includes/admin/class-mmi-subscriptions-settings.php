@@ -190,8 +190,8 @@ class MMI_Subscriptions_Settings extends WC_Settings_Page {
 				'id'    => 'mmi_subs_misc_section',
 			],
 			[
-				'title'   => __( 'Mixed Checkout', 'mmi-subscriptions' ),
-				'desc'    => __( 'Allow customers to purchase subscription and non-subscription products in the same transaction.', 'mmi-subscriptions' ),
+				'title'   => __( 'Multiple Subscriptions', 'mmi-subscriptions' ),
+				'desc'    => __( 'Allow more than one subscription in an order. Each one bills on its own schedule.', 'mmi-subscriptions' ),
 				'id'      => 'mmi_subs_multiple_purchase',
 				'type'    => 'checkbox',
 				'default' => self::$defaults['mmi_subs_multiple_purchase'],

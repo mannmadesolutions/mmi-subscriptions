@@ -163,8 +163,9 @@ class MMI_Subscriptions_Cart {
 
 	/**
 	 * Lists what's billed after today on the cart and checkout review tables, one row per
-	 * subscription: its name, its price and when payments start. Tax is left out of these
-	 * rows (owner, 2026-11-06): it's worked out when each renewal is billed.
+	 * subscription: its name and when payments start, then its price. The date sits under the
+	 * name because the left column has room for it. Tax is left out of these rows (owner,
+	 * 2026-11-06): it's worked out when each renewal is billed.
 	 *
 	 * @return void
 	 */
@@ -184,12 +185,12 @@ class MMI_Subscriptions_Cart {
 		</tr>
 		<?php foreach ( $lines as $line ) : ?>
 		<tr class="mmi-recurring-total">
-			<th><?php echo esc_html( $line['name'] ); ?></th>
-			<td data-title="<?php echo esc_attr( $line['name'] ); ?>">
-				<?php echo wp_kses_post( self::get_term_price( $line['total'], $line ) ); ?>
+			<th>
+				<?php echo esc_html( $line['name'] ); ?>
 				<?php /* translators: %s: date of the first automatic payment */ ?>
 				<br><small><?php echo esc_html( sprintf( __( 'Starts %s', 'mmi-subscriptions' ), date_i18n( wc_date_format(), $line['starts'] ) ) ); ?></small>
-			</td>
+			</th>
+			<td data-title="<?php echo esc_attr( $line['name'] ); ?>"><?php echo wp_kses_post( self::get_term_price( $line['total'], $line ) ); ?></td>
 		</tr>
 		<?php endforeach; ?>
 		<?php
