@@ -163,7 +163,8 @@ class MMI_Subscriptions_Cart {
 
 	/**
 	 * Lists what's billed after today on the cart and checkout review tables, one row per
-	 * subscription: its name, what each payment comes to, and when payments start.
+	 * subscription: its name, its price and when payments start. Tax is left out of these
+	 * rows (owner, 2026-11-06): it's worked out when each renewal is billed.
 	 *
 	 * @return void
 	 */
@@ -186,33 +187,12 @@ class MMI_Subscriptions_Cart {
 			<th><?php echo esc_html( $line['name'] ); ?></th>
 			<td data-title="<?php echo esc_attr( $line['name'] ); ?>">
 				<?php echo wp_kses_post( self::get_term_price( $line['total'], $line ) ); ?>
-				<br><small><?php echo wp_kses_post( self::get_line_details( $line ) ); ?></small>
+				<?php /* translators: %s: date of the first automatic payment */ ?>
+				<br><small><?php echo esc_html( sprintf( __( 'Starts %s', 'mmi-subscriptions' ), date_i18n( wc_date_format(), $line['starts'] ) ) ); ?></small>
 			</td>
 		</tr>
 		<?php endforeach; ?>
 		<?php
-	}
-
-	/**
-	 * Explains a recurring row: where the amount comes from and when it starts.
-	 *
-	 * @param  array $line One entry of get_recurring_lines().
-	 * @return string
-	 */
-	private static function get_line_details( array $line ): string {
-		$details = [];
-		if ( $line['starts'] ) {
-			/* translators: %s: date of the first automatic payment */
-			$details[] = sprintf( __( 'Starts %s', 'mmi-subscriptions' ), date_i18n( wc_date_format(), $line['starts'] ) );
-		}
-		if ( $line['tax'] > 0 ) {
-			$details[] = wc_prices_include_tax()
-				/* translators: %s: tax amount */
-				? sprintf( __( 'Includes %s tax', 'mmi-subscriptions' ), wc_price( $line['tax'] ) )
-				/* translators: 1: price before tax; 2: tax amount */
-				: sprintf( __( '%1$s + %2$s tax', 'mmi-subscriptions' ), wc_price( $line['net'] ), wc_price( $line['tax'] ) );
-		}
-		return implode( '<br>', $details );
 	}
 
 	/**
@@ -246,7 +226,7 @@ class MMI_Subscriptions_Cart {
 	 * different terms never share a total, and $49 a month and $99 a year are not $148 of anything.
 	 *
 	 * @param  WC_Cart $cart
-	 * @return array<int, array{name: string, period: string, interval: int, net: float, tax: float, total: float, starts: int}>
+	 * @return array<int, array{name: string, period: string, interval: int, total: float, starts: int}>
 	 */
 	private static function get_recurring_lines( WC_Cart $cart ): array {
 		$lines = [];
@@ -266,16 +246,13 @@ class MMI_Subscriptions_Cart {
 				continue;
 			}
 
-			$net = max( 0.0, $price * $quantity - array_sum( self::get_recurring_discounts( $cart, $cart_item, $product, $price ) ) );
-			$tax = self::get_recurring_tax( $cart, $product, $net );
+			$total = max( 0.0, $price * $quantity - array_sum( self::get_recurring_discounts( $cart, $cart_item, $product, $price ) ) );
 
 			$lines[] = [
 				'name'     => self::get_short_name( $product, $cart_item ),
 				'period'   => MMI_Subscriptions_Product::get_period( $product ),
 				'interval' => MMI_Subscriptions_Product::get_interval( $product ),
-				'net'      => $net,
-				'tax'      => $tax,
-				'total'    => wc_prices_include_tax() ? $net : $net + $tax,
+				'total'    => $total,
 				'starts'   => $starts,
 			];
 		}
@@ -334,32 +311,6 @@ class MMI_Subscriptions_Cart {
 			$discounts[ $code ] = round( $each * $quantity, wc_get_price_decimals() );
 		}
 		return $discounts;
-	}
-
-	/**
-	 * Returns the tax on one line's recurring amount, using the rates the cart itself would
-	 * use for that product. A share of the first payment's tax won't do: a coupon on the
-	 * first payment or a line that isn't a subscription would change it.
-	 *
-	 * @param  WC_Cart    $cart
-	 * @param  WC_Product $product
-	 * @param  float      $amount
-	 * @return float
-	 */
-	private static function get_recurring_tax( WC_Cart $cart, WC_Product $product, float $amount ): float {
-		$customer = $cart->get_customer();
-		if ( $amount <= 0 || ! wc_tax_enabled() || ! $product->is_taxable() || ( $customer && $customer->get_is_vat_exempt() ) ) {
-			return 0.0;
-		}
-
-		$rates = apply_filters(
-			'woocommerce_cart_totals_get_item_tax_rates',
-			WC_Tax::get_rates( $product->get_tax_class(), $customer ),
-			(object) [ 'product' => $product ],
-			$cart
-		);
-
-		return round( array_sum( WC_Tax::calc_tax( $amount, $rates, wc_prices_include_tax() ) ), wc_get_price_decimals() );
 	}
 
 	/**
