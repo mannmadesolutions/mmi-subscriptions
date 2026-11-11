@@ -1,0 +1,117 @@
+{
+    "product": 195175,
+    "name": "MMI Subscriptions",
+    "excerpt": "A self-contained subscription engine for WooCommerce: recurring billing, renewals, switching and payment retries.",
+    "intro": "MMI Subscriptions adds recurring products to WooCommerce without another subscription extension. Customers subscribe at checkout and manage everything from My Account; renewals bill automatically through your payment gateway.",
+    "features": [
+        {
+            "id": "renewal-retries",
+            "text": "Automatic renewals with failed-payment retries",
+            "anchor": "class:MMI_Subscriptions_Retry_Manager",
+            "since": ""
+        },
+        {
+            "id": "switching-early-renewal",
+            "text": "Plan switching and early renewal",
+            "anchor": "class:MMI_Subscriptions_Switcher",
+            "since": ""
+        },
+        {
+            "id": "coupons-emails",
+            "text": "Subscription coupons and customer emails",
+            "anchor": "class:MMI_Subscriptions_Coupons",
+            "since": ""
+        },
+        {
+            "id": "my-account-pages",
+            "text": "Customer pages for My Account, including Bricks elements",
+            "anchor": "class:MMI_Subscriptions_My_Account",
+            "since": ""
+        }
+    ],
+    "sections": [],
+    "requirements": "WordPress 6.4+, WooCommerce 8.0+, PHP 8.0+. Don’t run it alongside WooCommerce Subscriptions; the plugin warns you if both are active.",
+    "suite_line": "recurring billing for WooCommerce",
+    "screenshots": [
+        {
+            "slug": "subscriptions-detail",
+            "attachment": 214148,
+            "title": "Subscription details",
+            "caption": "Everything about one subscription on a single screen.",
+            "features": [
+                "Status, customer, recurring total, payment method and length at the top, with the renewal charge including tax",
+                "Line items with tax and the renewal total",
+                "Every related order, parent and renewals, with its created and paid dates and its status",
+                "Change the status with an optional note, process a renewal now, or edit the next payment and end dates"
+            ],
+            "screen": [
+                "includes/admin/class-mmi-subscription-meta-boxes.php",
+                "includes/admin/class-mmi-subscriptions-admin.php",
+                "assets/css/admin-subscriptions.css"
+            ],
+            "taken": {
+                "date": "2026-10-15",
+                "commit": "93948ab"
+            }
+        },
+        {
+            "slug": "subscriptions-notes",
+            "attachment": 214149,
+            "title": "Subscription notes",
+            "caption": "A running log of what happened to a subscription, and when.",
+            "features": [
+                "Renewal emails, status changes and new renewal orders are logged automatically",
+                "Each entry shows when it happened and whether the system or a person made it",
+                "Add your own note, or tick Send to customer to email it to them"
+            ],
+            "screen": [
+                "includes/admin/class-mmi-subscription-meta-boxes.php",
+                "assets/css/admin-subscriptions.css"
+            ],
+            "taken": {
+                "date": "2026-10-15",
+                "commit": "93948ab"
+            }
+        },
+        {
+            "slug": "subscriptions-list",
+            "attachment": 214150,
+            "title": "All subscriptions",
+            "caption": "Every customer subscription in one sortable table.",
+            "features": [
+                "Filter by Pending, Active, On Hold, Cancelled, Pending Cancellation, Expired or Switched",
+                "Next payment, recurring total, payment method and start date for each subscription",
+                "Sort on any column",
+                "Bulk actions on the subscriptions you select"
+            ],
+            "screen": [
+                "includes/admin/class-mmi-subscriptions-admin.php",
+                "assets/css/admin-subscriptions.css"
+            ],
+            "taken": {
+                "date": "2026-10-15",
+                "commit": "93948ab"
+            }
+        },
+        {
+            "slug": "subscriptions-product",
+            "attachment": 214151,
+            "title": "Subscription product settings",
+            "caption": "Sell any product as a subscription from WooCommerce's Product data box.",
+            "features": [
+                "A subscription price with its billing interval and period",
+                "Stop renewing after a set length, or renew until cancelled",
+                "An optional sign-up fee and free trial",
+                "Sale price, tax status and tax class work as they do for any product"
+            ],
+            "screen": [
+                "includes/products/class-mmi-product-subscription.php",
+                "assets/js/admin-product-tabs.js"
+            ],
+            "taken": {
+                "date": "2026-10-15",
+                "commit": "93948ab"
+            }
+        }
+    ]
+}

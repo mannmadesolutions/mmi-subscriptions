@@ -1,0 +1,6 @@
+{
+  "checks": [
+    "lint",
+    "page"
+  ]
+}
