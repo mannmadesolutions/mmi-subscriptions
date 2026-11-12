@@ -2,7 +2,7 @@
     "product": 195175,
     "name": "MMI Subscriptions",
     "excerpt": "A self-contained subscription engine for WooCommerce: recurring billing, renewals, switching and payment retries.",
-    "intro": "MMI Subscriptions adds recurring products to WooCommerce without another subscription extension. Customers subscribe at checkout and manage everything from My Account; renewals bill automatically through your payment gateway.",
+    "intro": "MMI Subscriptions adds recurring products to WooCommerce without another subscription extension. Customers subscribe at checkout and manage their subscriptions from My Account. Renewals bill automatically through a payment gateway that supports WooCommerce subscription renewals, such as Stripe.",
     "features": [
         {
             "id": "renewal-retries",
@@ -12,7 +12,7 @@
         },
         {
             "id": "switching-early-renewal",
-            "text": "Plan switching and early renewal",
+            "text": "Plan switching and early renewal, when you turn them on",
             "anchor": "class:MMI_Subscriptions_Switcher",
             "since": ""
         },
@@ -27,10 +27,28 @@
             "text": "Customer pages for My Account, including Bricks elements",
             "anchor": "class:MMI_Subscriptions_My_Account",
             "since": ""
+        },
+        {
+            "id": "one-time-variations",
+            "text": "Sell a one-time option beside recurring plans, like a lifetime license next to yearly ones",
+            "anchor": "function:mmisub_is_one_time_variation",
+            "since": "2.8.5"
+        },
+        {
+            "id": "checkout-totals",
+            "text": "Checkout shows what's due today and what each subscription bills after, with its start date",
+            "anchor": "class:MMI_Subscriptions_Cart",
+            "since": "2.8.6"
+        },
+        {
+            "id": "multiple-subscriptions",
+            "text": "Allow more than one subscription in an order; each one bills on its own schedule",
+            "anchor": "option:mmi_subs_multiple_purchase",
+            "since": "2.8.6"
         }
     ],
     "sections": [],
-    "requirements": "WordPress 6.4+, WooCommerce 8.0+, PHP 8.0+. Don’t run it alongside WooCommerce Subscriptions; the plugin warns you if both are active.",
+    "requirements": "WordPress 6.4+, WooCommerce 8.0+, PHP 8.0+. Don’t run it alongside WooCommerce Subscriptions.",
     "suite_line": "recurring billing for WooCommerce",
     "screenshots": [
         {
@@ -60,7 +78,7 @@
             "title": "Subscription notes",
             "caption": "A running log of what happened to a subscription, and when.",
             "features": [
-                "Renewal emails, status changes and new renewal orders are logged automatically",
+                "Status changes and new renewal orders are logged automatically. On WooCommerce 10.9 or later, every email sent is logged too",
                 "Each entry shows when it happened and whether the system or a person made it",
                 "Add your own note, or tick Send to customer to email it to them"
             ],
