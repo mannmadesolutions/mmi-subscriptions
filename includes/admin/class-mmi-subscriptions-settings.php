@@ -442,6 +442,7 @@ class MMI_Subscriptions_Settings extends WC_Settings_Page {
 					if ( isset( $_POST[ $id ] ) ) {
 						$allowed = array_keys( $field['options'] ?? [] );
 						$raw     = sanitize_key( wp_unslash( $_POST[ $id ] ) );
+						// audit-ok: haystack is one select field's few option keys; loop is the settings fields
 						$value   = in_array( $raw, $allowed, true ) ? $raw : ( $field['default'] ?? '' );
 					}
 					break;

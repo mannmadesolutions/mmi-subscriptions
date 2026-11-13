@@ -442,6 +442,7 @@ class MMI_Subscriptions_Coupons {
 			// Remove any stale recurring coupon line items before syncing.
 			foreach ( $subscription->get_coupons() as $existing_item ) {
 				$existing_coupon = new WC_Coupon( $existing_item->get_code() );
+				// audit-ok: haystack is the 2 fixed recurring coupon types; loop is one subscription's coupons
 				if ( in_array( $existing_coupon->get_discount_type(), $recurring_types, true ) ) {
 					$subscription->remove_item( $existing_item->get_id() );
 				}

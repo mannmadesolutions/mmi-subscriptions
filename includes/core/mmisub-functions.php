@@ -109,6 +109,7 @@ function mmisub_get_subscriptions_for_user( int $customer_id, array $status = []
 		'type'        => 'shop_mmi_sub',
 		'customer_id' => $customer_id,
 		'status'      => $status,
+		// audit-ok: ids of one customer's own subscriptions, a handful at most
 		'limit'       => -1,
 		'return'      => 'ids',
 	] );

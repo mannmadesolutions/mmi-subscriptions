@@ -385,6 +385,7 @@ class MMI_Subscription extends WC_Order {
 			'meta_key'   => '_mmi_subscription_renewal',
 			'meta_value' => $this->get_id(),
 			'type'       => 'shop_order',
+			// audit-ok: renewals of this one subscription only (one per billing period)
 			'limit'      => -1,
 		] );
 		return is_array( $orders ) ? $orders : [];

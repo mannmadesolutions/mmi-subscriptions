@@ -302,6 +302,7 @@ class MMI_Subscriptions_Switcher {
 		$query = new WC_Product_Query( [
 			'type'    => [ 'mmi_subscription', 'mmi_variable_subscription' ],
 			'status'  => 'publish',
+			// audit-ok: only published subscription-type products (a store's few plans), not the catalog
 			'limit'   => -1,
 			'return'  => 'objects',
 		] );

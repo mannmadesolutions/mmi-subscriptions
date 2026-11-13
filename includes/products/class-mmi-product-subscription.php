@@ -917,6 +917,7 @@ add_action( 'admin_init', static function () {
 
 	$product_ids = get_posts( [
 		'post_type'      => 'product',
+		// audit-ok: ids only, limited to subscription product types (dozens); one-time backfill
 		'posts_per_page' => -1,
 		'fields'         => 'ids',
 		'tax_query'      => [ // phpcs:ignore WordPress.DB.SlowDBQuery
