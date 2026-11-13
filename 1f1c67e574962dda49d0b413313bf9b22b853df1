@@ -1,3 +1,4 @@
-lint pass ship 7 files
+lint pass 100 files
 audit pass ship 7 files
 site-rules skip no gate in this repo
+page pass 7 features, 4 screenshots; 1 warning
