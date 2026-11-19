@@ -492,14 +492,4 @@ class MMI_Subscriptions_Settings extends WC_Settings_Page {
 			return $pages;
 		} );
 	}
-
-	/**
-	 * Returns a default value for a given settings key.
-	 *
-	 * @param  string $key
-	 * @return mixed  false if the key has no registered default.
-	 */
-	public static function get_default( string $key ) {
-		return self::$defaults[ $key ] ?? false;
-	}
 }

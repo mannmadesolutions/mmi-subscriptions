@@ -31,12 +31,6 @@ class MMI_Subscriptions_Coupons {
 	/** Meta key on a WC_Coupon for the max-renewals limit. */
 	const PAYMENT_LIMIT_META = '_mmi_coupon_payment_limit';
 
-	/** Meta key prefix on a subscription tracking how many times each coupon was applied. */
-	const APPLIED_COUNT_META_PREFIX = '_mmi_sub_coupon_count_';
-
-	/** Meta key on a subscription storing the list of persisted recurring coupon codes. */
-	const RECURRING_COUPONS_META = '_mmi_sub_recurring_coupons';
-
 	// ── Bootstrap ─────────────────────────────────────────────────────────────
 
 	public static function init(): void {

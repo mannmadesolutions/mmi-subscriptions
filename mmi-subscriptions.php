@@ -33,14 +33,6 @@ define( 'MMI_SUBSCRIPTIONS_FILE',       __FILE__ );
 // with no subscription (mmisub_is_one_time_variation()).
 define( 'MMISUB_ONE_TIME_META', '_mmi_one_time_purchase' );
 
-// Legacy compat constants (used by some includes).
-if ( ! defined( 'MMI_SUBSCRIPTIONS_PATH' ) ) {
-	define( 'MMI_SUBSCRIPTIONS_PATH', MMI_SUBSCRIPTIONS_PLUGIN_DIR );
-}
-if ( ! defined( 'MMI_SUBSCRIPTIONS_URL' ) ) {
-	define( 'MMI_SUBSCRIPTIONS_URL', MMI_SUBSCRIPTIONS_PLUGIN_URL );
-}
-
 // ── MMI Shared Library (ADR-0006, mmi-admin/docs/decisions/) ────────
 // Registers this plugin's bundled copy of MMI_Settings/MMI_Logger as a
 // version-negotiation candidate — resolves with or without mmi-hub present.

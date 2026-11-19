@@ -222,26 +222,6 @@ class MMI_Subscriptions_Product {
 	public static function get_sign_up_fee( WC_Product $product ): float {
 		return (float) $product->get_meta( '_subscription_sign_up_fee', true );
 	}
-
-	/**
-	 * Checks whether the product has a free trial.
-	 *
-	 * @param  WC_Product $product
-	 * @return bool
-	 */
-	public static function has_free_trial( WC_Product $product ): bool {
-		return self::get_trial_length( $product ) > 0;
-	}
-
-	/**
-	 * Checks whether the product has a sign-up fee.
-	 *
-	 * @param  WC_Product $product
-	 * @return bool
-	 */
-	public static function has_sign_up_fee( WC_Product $product ): bool {
-		return self::get_sign_up_fee( $product ) > 0;
-	}
 }
 
 // ── Price string helper ──────────────────────────────────────────────────────

@@ -291,21 +291,4 @@ class MMI_Subscriptions_Switcher {
 		}
 		return null;
 	}
-
-	/**
-	 * Returns all products available for switching (all active mmi_subscription and
-	 * mmi_variable_subscription products).
-	 *
-	 * @return WC_Product[]
-	 */
-	public static function get_available_switch_products(): array {
-		$query = new WC_Product_Query( [
-			'type'    => [ 'mmi_subscription', 'mmi_variable_subscription' ],
-			'status'  => 'publish',
-			// audit-ok: only published subscription-type products (a store's few plans), not the catalog
-			'limit'   => -1,
-			'return'  => 'objects',
-		] );
-		return $query->get_products();
-	}
 }

@@ -271,34 +271,4 @@ class MMI_Subscription_Payment_Gateways {
 		// Covers WCS-compatible gateways (e.g. stripe) when WCS is not active.
 		return $gateway->supports( 'tokenization' ) && $gateway->supports( 'add_payment_method' );
 	}
-
-	/**
-	 * Returns true if at least one active payment gateway supports the given feature.
-	 *
-	 * @param  string $feature  e.g. 'subscription_payment_method_change_admin'.
-	 * @return bool
-	 */
-	public static function one_gateway_supports( string $feature ): bool {
-		$gateways = WC()->payment_gateways()->get_available_payment_gateways();
-		foreach ( $gateways as $gateway ) {
-			if ( $gateway->supports( $feature ) ) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Checks whether a subscription's payment gateway supports a given feature.
-	 *
-	 * Delegates to MMI_Subscription::payment_method_supports() which also handles
-	 * the manual-renewal bypass.
-	 *
-	 * @param  MMI_Subscription $subscription
-	 * @param  string           $feature
-	 * @return bool
-	 */
-	public static function subscription_payment_method_supports( MMI_Subscription $subscription, string $feature ): bool {
-		return $subscription->payment_method_supports( $feature );
-	}
 }

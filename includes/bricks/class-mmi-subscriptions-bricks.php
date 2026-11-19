@@ -41,8 +41,7 @@ class MMI_Subscriptions_Bricks {
 	/** Template type: single subscription. */
 	const TYPE_VIEW = 'wc_account_mmi_view_subscription';
 
-	/** Element names (also each element's $name). */
-	const ELEMENT_LIST = 'mmi-account-subscriptions';
+	/** Element name of the single-subscription element (also its $name). */
 	const ELEMENT_VIEW = 'mmi-account-view-subscription';
 
 	/** Bricks' post meta holding a template's type. */

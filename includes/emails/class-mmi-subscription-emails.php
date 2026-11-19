@@ -62,10 +62,6 @@ abstract class MMI_Email_Base extends WC_Email {
 		$this->recipient = $subscription->get_billing_email();
 	}
 
-	public function get_default_recipient(): string {
-		return '';
-	}
-
 	public function get_content_html(): string {
 		ob_start();
 		$this->render_content();

@@ -62,27 +62,6 @@ class MMI_Subscription_Scheduler {
 	}
 
 	/**
-	 * Returns the AS action hook for a given date type, or null if not schedulable.
-	 *
-	 * @param  string $date_type
-	 * @return string|null
-	 */
-	public static function get_hook_for_date_type( string $date_type ): ?string {
-		return self::$date_type_hooks[ $date_type ] ?? null;
-	}
-
-	/**
-	 * Returns the date type for a given AS action hook, or null if not mapped.
-	 *
-	 * @param  string $hook
-	 * @return string|null
-	 */
-	public static function get_date_type_for_hook( string $hook ): ?string {
-		$flipped = array_flip( self::$date_type_hooks );
-		return $flipped[ $hook ] ?? null;
-	}
-
-	/**
 	 * Schedules or cancels the Action Scheduler action for a date update.
 	 *
 	 * - If $timestamp is in the future: cancel any existing action and schedule a new one.

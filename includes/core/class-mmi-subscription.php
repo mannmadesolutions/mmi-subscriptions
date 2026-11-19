@@ -77,15 +77,6 @@ class MMI_Subscription extends WC_Order {
 	}
 
 	/**
-	 * Returns the maximum number of billing cycles (0 = unlimited).
-	 *
-	 * @return int
-	 */
-	public function get_billing_length(): int {
-		return (int) $this->get_meta( '_mmi_sub_billing_length', true );
-	}
-
-	/**
 	 * Returns the trial period unit (day|week|month|year), or empty string if no trial.
 	 *
 	 * @return string
@@ -101,15 +92,6 @@ class MMI_Subscription extends WC_Order {
 	 */
 	public function get_trial_length(): int {
 		return (int) $this->get_meta( '_mmi_sub_trial_length', true );
-	}
-
-	/**
-	 * Returns the recurring price (excluding sign-up fee).
-	 *
-	 * @return string
-	 */
-	public function get_recurring_total(): string {
-		return (string) $this->get_meta( '_mmi_sub_recurring_total', true );
 	}
 
 	/**
@@ -265,41 +247,6 @@ class MMI_Subscription extends WC_Order {
 		return empty( $payment_method );
 	}
 
-	/**
-	 * Returns true when the subscription is in an active, billable state.
-	 *
-	 * @return bool
-	 */
-	public function is_active(): bool {
-		return $this->has_status( 'mmisub-active' );
-	}
-
-	// ── Payment gateway capability checks ────────────────────────────────────
-
-	/**
-	 * Checks whether the current payment gateway supports a specific subscription feature.
-	 *
-	 * Returns true automatically when the subscription requires manual renewal —
-	 * manual subs are gateway-agnostic.
-	 *
-	 * @param  string $feature  e.g. 'subscription_date_changes', 'subscription_cancellation'.
-	 * @return bool
-	 */
-	public function payment_method_supports( string $feature ): bool {
-		if ( $this->is_manual() ) {
-			return true;
-		}
-		$payment_method_id = $this->get_payment_method();
-		if ( empty( $payment_method_id ) ) {
-			return false;
-		}
-		$gateways = WC()->payment_gateways()->payment_gateways();
-		if ( ! isset( $gateways[ $payment_method_id ] ) ) {
-			return false;
-		}
-		return $gateways[ $payment_method_id ]->supports( $feature );
-	}
-
 	// ── Lifecycle: payment completion ─────────────────────────────────────────
 
 	/**
@@ -389,18 +336,6 @@ class MMI_Subscription extends WC_Order {
 			'limit'      => -1,
 		] );
 		return is_array( $orders ) ? $orders : [];
-	}
-
-	/**
-	 * Returns the count of completed renewal payments.
-	 *
-	 * @return int
-	 */
-	public function get_payment_count(): int {
-		return count( array_filter(
-			$this->get_renewal_orders(),
-			static fn( WC_Order $o ) => in_array( $o->get_status(), [ 'completed', 'processing' ], true )
-		) );
 	}
 
 	// ── Status transition override ────────────────────────────────────────────

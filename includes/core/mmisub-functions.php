@@ -40,33 +40,7 @@ function mmisub_get_ended_statuses(): array {
 	return [ 'mmisub-cancelled', 'mmisub-expired', 'mmisub-switched', 'trash' ];
 }
 
-/**
- * Returns statuses from which a subscription can be reactivated.
- *
- * @return string[]
- */
-function mmisub_get_can_be_updated_to_active_statuses(): array {
-	return [ 'mmisub-on-hold', 'mmisub-pending-cancel' ];
-}
-
 // ── Object retrieval ──────────────────────────────────────────────────────────
-
-/**
- * Checks whether a value is (or refers to) an MMI_Subscription instance.
- *
- * @param  mixed $thing  Object or numeric ID.
- * @return bool
- */
-function mmisub_is_subscription( $thing ): bool {
-	if ( is_object( $thing ) && $thing instanceof MMI_Subscription ) {
-		return true;
-	}
-	if ( is_numeric( $thing ) ) {
-		$order = wc_get_order( (int) $thing );
-		return $order instanceof MMI_Subscription;
-	}
-	return false;
-}
 
 /**
  * Returns an MMI_Subscription object for the given ID or object.
@@ -424,37 +398,6 @@ function mmisub_get_period_label( string $period, int $interval = 1 ): string {
 		];
 	}
 	return $labels[ $period ] ?? $period;
-}
-
-/**
- * Returns a MySQL datetime string for a future point in time, or '0000-00-00 00:00:00' for no date.
- *
- * @param  int $timestamp  0 = no date set.
- * @return string
- */
-function mmisub_date( int $timestamp ): string {
-	if ( 0 === $timestamp ) {
-		return '0000-00-00 00:00:00';
-	}
-	return gmdate( 'Y-m-d H:i:s', $timestamp );
-}
-
-/**
- * Returns a valid date types that can be scheduled on a subscription.
- *
- * @return string[]
- */
-function mmisub_get_date_types(): array {
-	return apply_filters( 'mmisub_date_types', [
-		'start',
-		'trial_end',
-		'next_payment',
-		'last_payment',
-		'cancelled',
-		'end',
-		'payment_retry',
-		'end_of_prepaid_term',
-	] );
 }
 
 // ── Access control & audit ────────────────────────────────────────────────────
