@@ -107,8 +107,8 @@ class MMI_Product_Variable_Subscription extends WC_Product_Variable {
 		$amounts = [];
 		$suffix  = [];
 		foreach ( $this->get_variation_prices( true )['price'] as $variation_id => $amount ) {
-			$period   = MMI_Subscriptions_Product::normalize( '_subscription_period', MMI_Subscriptions_Product::variation_term( (int) $variation_id, $this->get_id(), '_subscription_period' ) );
-			$interval = (int) MMI_Subscriptions_Product::normalize( '_subscription_period_interval', MMI_Subscriptions_Product::variation_term( (int) $variation_id, $this->get_id(), '_subscription_period_interval' ) );
+			$period   = MMI_Subscriptions_Product::variation_value( (int) $variation_id, $this->get_id(), '_subscription_period' );
+			$interval = (int) MMI_Subscriptions_Product::variation_value( (int) $variation_id, $this->get_id(), '_subscription_period_interval' );
 			$term     = $interval . ' ' . $period;
 
 			$amounts[ $term ][] = (float) $amount;
@@ -187,6 +187,18 @@ class MMI_Subscriptions_Product {
 			$value = (string) get_post_meta( $parent_id, $key, true );
 		}
 		return $value;
+	}
+
+	/**
+	 * What a variation known only by ID bills for a term: variation_term(), normalized.
+	 *
+	 * @param  int    $variation_id
+	 * @param  int    $parent_id
+	 * @param  string $key
+	 * @return string
+	 */
+	public static function variation_value( int $variation_id, int $parent_id, string $key ): string {
+		return self::normalize( $key, self::variation_term( $variation_id, $parent_id, $key ) );
 	}
 
 	/**
@@ -416,10 +428,10 @@ function mmisub_get_promised_terms( WC_Product $product ): array {
 	$fees   = [];
 	$trials = [];
 	foreach ( $children as $child_id ) {
-		$fees[ MMI_Subscriptions_Product::normalize( '_subscription_sign_up_fee', MMI_Subscriptions_Product::variation_term( (int) $child_id, $product->get_id(), '_subscription_sign_up_fee' ) ) ] = true;
+		$fees[ MMI_Subscriptions_Product::variation_value( (int) $child_id, $product->get_id(), '_subscription_sign_up_fee' ) ] = true;
 
-		$length = (int) MMI_Subscriptions_Product::variation_term( (int) $child_id, $product->get_id(), '_subscription_trial_length' );
-		$period = MMI_Subscriptions_Product::normalize( '_subscription_trial_period', MMI_Subscriptions_Product::variation_term( (int) $child_id, $product->get_id(), '_subscription_trial_period' ) );
+		$length = (int) MMI_Subscriptions_Product::variation_value( (int) $child_id, $product->get_id(), '_subscription_trial_length' );
+		$period = MMI_Subscriptions_Product::variation_value( (int) $child_id, $product->get_id(), '_subscription_trial_period' );
 		$trials[ $length > 0 ? $length . ' ' . $period : '0' ] = true;
 	}
 
