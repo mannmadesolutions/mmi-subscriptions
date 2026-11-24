@@ -543,12 +543,15 @@ add_action( 'woocommerce_product_options_general_product_data', static function 
 	// ── Row 1: Subscription Price + Interval + Period (one combined row) ──────
 	// Mirrors WCS layout: price input + interval select + period select inside
 	// a single <span class="wrap"> in one <p> tag.
+	// A variable subscription's price lives on each variation, so its parent shows
+	// only the billing period here (still read for the "/ year" price suffix).
 	?>
 	<p class="form-field _subscription_price_fields _subscription_price_field">
-		<label for="_subscription_price"><?php echo esc_html( sprintf( /* translators: %s currency symbol */ __( 'Subscription price (%s)', 'mmi-subscriptions' ), get_woocommerce_currency_symbol() ) ); ?></label>
+		<label for="_subscription_price" class="hide_if_mmi_variable_subscription"><?php echo esc_html( sprintf( /* translators: %s currency symbol */ __( 'Subscription price (%s)', 'mmi-subscriptions' ), get_woocommerce_currency_symbol() ) ); ?></label>
+		<label for="_subscription_period_interval" class="show_if_mmi_variable_subscription hidden"><?php esc_html_e( 'Billing period', 'mmi-subscriptions' ); ?></label>
 		<span class="wrap">
 			<input type="text" id="_subscription_price" name="_subscription_price"
-			       class="wc_input_price wc_input_subscription_price short"
+			       class="wc_input_price wc_input_subscription_price short hide_if_mmi_variable_subscription"
 			       placeholder="<?php esc_attr_e( 'e.g. 5.90', 'mmi-subscriptions' ); ?>"
 			       step="any" min="0" value="<?php echo esc_attr( $price ); ?>" />
 			<label for="_subscription_period_interval" class="screen-reader-text"><?php esc_html_e( 'Billing interval', 'mmi-subscriptions' ); ?></label>
@@ -566,6 +569,7 @@ add_action( 'woocommerce_product_options_general_product_data', static function 
 				<?php endforeach; ?>
 			</select>
 		</span>
+		<span class="description show_if_mmi_variable_subscription hidden"><?php esc_html_e( 'Each variation has its own price. Set prices on the Variations tab.', 'mmi-subscriptions' ); ?></span>
 	</p>
 	<?php
 
