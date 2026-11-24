@@ -45,6 +45,12 @@
             "text": "Allow more than one subscription in an order; each one bills on its own schedule",
             "anchor": "option:mmi_subs_multiple_purchase",
             "since": "2.8.6"
+        },
+        {
+            "id": "product-wide-terms",
+            "text": "Set the billing period, free trial, sign-up fee and renewal length once for a whole product; each option follows them unless you give it its own",
+            "anchor": "function:variation_term",
+            "since": "2.9.0"
         }
     ],
     "sections": [],

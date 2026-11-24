@@ -104,7 +104,7 @@ class MMI_Subscriptions_Cart {
 			}
 
 			$sign_up_fee   = MMI_Subscriptions_Product::get_sign_up_fee( $product );
-			$trial_length  = MMI_Subscriptions_Product::get_trial_length( $product );
+			$trial_length  = MMI_Subscriptions_Product::get_trial_length( $product, $cart_item );
 			$recurring_price = (float) MMI_Subscriptions_Product::get_price( $product );
 
 			if ( $trial_length > 0 && $sign_up_fee <= 0 ) {
@@ -240,7 +240,7 @@ class MMI_Subscriptions_Cart {
 
 			$price    = (float) MMI_Subscriptions_Product::get_price( $product );
 			$quantity = (int) ( $cart_item['quantity'] ?? 1 );
-			$starts   = self::get_first_renewal( $product );
+			$starts   = self::get_first_renewal( $product, $cart_item );
 
 			// Nothing follows today for a free line or one that ends after a single payment.
 			if ( $price * $quantity <= 0 || ! $starts ) {
@@ -318,27 +318,30 @@ class MMI_Subscriptions_Cart {
 	 * Returns when a subscription bought now first renews, or 0 if it never does.
 	 *
 	 * @param  WC_Product $product
+	 * @param  array      $cart_item
 	 * @return int  Timestamp.
 	 */
-	private static function get_first_renewal( WC_Product $product ): int {
-		if ( 1 === MMI_Subscriptions_Product::get_length( $product ) ) {
-			return 0;
-		}
-
+	private static function get_first_renewal( WC_Product $product, array $cart_item ): int {
 		$now          = time();
 		$period       = MMI_Subscriptions_Product::get_period( $product );
-		$trial_length = MMI_Subscriptions_Product::get_trial_length( $product );
+		$trial_length = MMI_Subscriptions_Product::get_trial_length( $product, $cart_item );
 		$trial_period = MMI_Subscriptions_Product::get_trial_period( $product );
 		$trial_end    = $trial_length > 0 && $trial_period ? (int) strtotime( '+' . $trial_length . ' ' . $trial_period, $now ) : 0;
 
+		// Without a trial, today's payment is the only one a single-period subscription takes.
+		if ( ! $trial_end && 1 === MMI_Subscriptions_Product::get_length( $product ) ) {
+			return 0;
+		}
+
 		if ( 'yes' === mmisub_get_option( 'mmi_subs_sync_enabled', 'no' ) ) {
-			$sync_day = (int) $product->get_meta( '_subscription_payment_sync_date', true );
+			$sync_day = MMI_Subscriptions_Product::get_payment_sync_date( $product );
 			if ( $sync_day > 0 ) {
 				return mmisub_calculate_sync_date( $period, $sync_day, $trial_end ?: $now );
 			}
 		}
 
-		return mmisub_calculate_next_payment_date( $period, MMI_Subscriptions_Product::get_interval( $product ), $trial_end ?: $now );
+		// A trial's first payment is due the day it ends (checkout's calculate_dates() agrees).
+		return $trial_end ?: mmisub_calculate_next_payment_date( $period, MMI_Subscriptions_Product::get_interval( $product ), $now );
 	}
 
 	/**
@@ -450,7 +453,7 @@ class MMI_Subscriptions_Cart {
 			return $recurring_price;
 		}
 
-		$sync_day = (int) $product->get_meta( '_subscription_payment_sync_date', true );
+		$sync_day = MMI_Subscriptions_Product::get_payment_sync_date( $product );
 		if ( $sync_day <= 0 ) {
 			return $recurring_price;
 		}

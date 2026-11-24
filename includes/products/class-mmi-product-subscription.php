@@ -107,8 +107,8 @@ class MMI_Product_Variable_Subscription extends WC_Product_Variable {
 		$amounts = [];
 		$suffix  = [];
 		foreach ( $this->get_variation_prices( true )['price'] as $variation_id => $amount ) {
-			$period   = (string) get_post_meta( $variation_id, '_subscription_period', true ) ?: (string) $this->get_meta( '_subscription_period', true ) ?: 'month';
-			$interval = max( 1, (int) ( get_post_meta( $variation_id, '_subscription_period_interval', true ) ?: $this->get_meta( '_subscription_period_interval', true ) ) );
+			$period   = MMI_Subscriptions_Product::normalize( '_subscription_period', MMI_Subscriptions_Product::variation_term( (int) $variation_id, $this->get_id(), '_subscription_period' ) );
+			$interval = (int) MMI_Subscriptions_Product::normalize( '_subscription_period_interval', MMI_Subscriptions_Product::variation_term( (int) $variation_id, $this->get_id(), '_subscription_period_interval' ) );
 			$term     = $interval . ' ' . $period;
 
 			$amounts[ $term ][] = (float) $amount;
@@ -144,6 +144,78 @@ class MMI_Product_Subscription_Variation extends WC_Product_Variation {
 class MMI_Subscriptions_Product {
 
 	/**
+	 * Billing terms a variable subscription sets once on its General tab. A
+	 * variation that leaves one blank uses the product's; one it fills in is its own.
+	 * The price is never inherited: every variation sets its own.
+	 */
+	const INHERITED_TERMS = [
+		'_subscription_period'            => true,
+		'_subscription_period_interval'   => true,
+		'_subscription_length'            => true,
+		'_subscription_sign_up_fee'       => true,
+		'_subscription_trial_length'      => true,
+		'_subscription_trial_period'      => true,
+		'_subscription_payment_sync_date' => true,
+	];
+
+	/**
+	 * Returns a billing term as stored, with a variation's blank term taken from its product.
+	 *
+	 * @param  WC_Product $product
+	 * @param  string     $key  Meta key, e.g. '_subscription_trial_length'.
+	 * @return string
+	 */
+	public static function term( WC_Product $product, string $key ): string {
+		$value = (string) $product->get_meta( $key, true );
+		if ( '' === $value && $product instanceof WC_Product_Variation && isset( self::INHERITED_TERMS[ $key ] ) ) {
+			$value = (string) get_post_meta( $product->get_parent_id(), $key, true );
+		}
+		return $value;
+	}
+
+	/**
+	 * The same as term() for a variation known only by ID (the variation-price cache).
+	 *
+	 * @param  int    $variation_id
+	 * @param  int    $parent_id
+	 * @param  string $key
+	 * @return string
+	 */
+	public static function variation_term( int $variation_id, int $parent_id, string $key ): string {
+		$value = (string) get_post_meta( $variation_id, $key, true );
+		if ( '' === $value && isset( self::INHERITED_TERMS[ $key ] ) ) {
+			$value = (string) get_post_meta( $parent_id, $key, true );
+		}
+		return $value;
+	}
+
+	/**
+	 * Returns the value a stored term bills as, so a blank, '0' and '0.00' compare
+	 * equal where they bill the same. Every getter below reads through this.
+	 *
+	 * @param  string $key
+	 * @param  string $raw
+	 * @return string
+	 */
+	public static function normalize( string $key, string $raw ): string {
+		switch ( $key ) {
+			case '_subscription_period':
+				return '' !== $raw ? $raw : 'year';
+			case '_subscription_trial_period':
+				return '' !== $raw ? $raw : 'day';
+			case '_subscription_period_interval':
+				return (string) max( 1, (int) $raw );
+			case '_subscription_sign_up_fee':
+				return (string) (float) $raw;
+			case '_subscription_length':
+			case '_subscription_trial_length':
+			case '_subscription_payment_sync_date':
+				return (string) (int) $raw;
+		}
+		return $raw;
+	}
+
+	/**
 	 * Checks whether a product is an MMI subscription product.
 	 *
 	 * @param  WC_Product|int $product
@@ -170,7 +242,7 @@ class MMI_Subscriptions_Product {
 	 * @return string
 	 */
 	public static function get_period( WC_Product $product ): string {
-		return (string) $product->get_meta( '_subscription_period', true ) ?: 'year';
+		return self::normalize( '_subscription_period', self::term( $product, '_subscription_period' ) );
 	}
 
 	/**
@@ -180,7 +252,7 @@ class MMI_Subscriptions_Product {
 	 * @return int
 	 */
 	public static function get_interval( WC_Product $product ): int {
-		return max( 1, (int) $product->get_meta( '_subscription_period_interval', true ) );
+		return (int) self::normalize( '_subscription_period_interval', self::term( $product, '_subscription_period_interval' ) );
 	}
 
 	/**
@@ -190,27 +262,35 @@ class MMI_Subscriptions_Product {
 	 * @return int
 	 */
 	public static function get_length( WC_Product $product ): int {
-		return (int) $product->get_meta( '_subscription_length', true );
+		return (int) self::term( $product, '_subscription_length' );
 	}
 
 	/**
-	 * Returns the trial period unit, or empty string if no trial.
+	 * Returns the trial period unit (day when none is set; it only counts with a trial length).
 	 *
 	 * @param  WC_Product $product
 	 * @return string
 	 */
 	public static function get_trial_period( WC_Product $product ): string {
-		return (string) $product->get_meta( '_subscription_trial_period', true );
+		return self::normalize( '_subscription_trial_period', self::term( $product, '_subscription_trial_period' ) );
 	}
 
 	/**
 	 * Returns the trial length, or 0 if no trial.
 	 *
-	 * @param  WC_Product $product
+	 * Pass the cart item or order item being bought when there is one: a purchase
+	 * that must not start with a trial (a license upgrade) answers the
+	 * 'mmi_subscription_skip_trial' filter for it, whatever the product offers.
+	 *
+	 * @param  WC_Product                       $product
+	 * @param  array|WC_Order_Item_Product|null $line Cart item array or order item.
 	 * @return int
 	 */
-	public static function get_trial_length( WC_Product $product ): int {
-		return (int) $product->get_meta( '_subscription_trial_length', true );
+	public static function get_trial_length( WC_Product $product, $line = null ): int {
+		if ( null !== $line && apply_filters( 'mmi_subscription_skip_trial', false, $line ) ) {
+			return 0;
+		}
+		return (int) self::term( $product, '_subscription_trial_length' );
 	}
 
 	/**
@@ -220,7 +300,17 @@ class MMI_Subscriptions_Product {
 	 * @return float
 	 */
 	public static function get_sign_up_fee( WC_Product $product ): float {
-		return (float) $product->get_meta( '_subscription_sign_up_fee', true );
+		return (float) self::term( $product, '_subscription_sign_up_fee' );
+	}
+
+	/**
+	 * Returns the day renewals are synchronised to, or 0 when they aren't.
+	 *
+	 * @param  WC_Product $product
+	 * @return int
+	 */
+	public static function get_payment_sync_date( WC_Product $product ): int {
+		return (int) self::term( $product, '_subscription_payment_sync_date' );
 	}
 }
 
@@ -264,16 +354,18 @@ function mmisub_get_period_suffix( string $period, int $interval = 1 ): string {
  * @return string
  */
 function mmisub_get_price_string( WC_Product $product, string $price_html ): string {
-	$period   = (string) $product->get_meta( '_subscription_period', true ) ?: 'month';
-	$interval = max( 1, (int) $product->get_meta( '_subscription_period_interval', true ) );
+	$period   = MMI_Subscriptions_Product::get_period( $product );
+	$interval = MMI_Subscriptions_Product::get_interval( $product );
 
 	$period_str = mmisub_get_period_suffix( $period, $interval );
 
 	/* translators: 1: formatted price HTML e.g. "$49.00"; 2: billing period string e.g. "/ month" */
 	$price_string = sprintf( _x( '%1$s %2$s', 'subscription price string', 'mmi-subscriptions' ), $price_html, $period_str );
 
+	$promised = mmisub_get_promised_terms( $product );
+
 	// Sign-up fee suffix.
-	$sign_up_fee = (float) $product->get_meta( '_subscription_sign_up_fee', true );
+	$sign_up_fee = $promised['sign_up_fee'];
 	if ( $sign_up_fee > 0 ) {
 		$price_string .= sprintf(
 			/* translators: %s: formatted sign-up fee e.g. "$10.00" */
@@ -283,8 +375,8 @@ function mmisub_get_price_string( WC_Product $product, string $price_html ): str
 	}
 
 	// Free trial suffix.
-	$trial_length = (int) $product->get_meta( '_subscription_trial_length', true );
-	$trial_period = (string) $product->get_meta( '_subscription_trial_period', true ) ?: 'day';
+	$trial_length = $promised['trial_length'];
+	$trial_period = $promised['trial_period'];
 	if ( $trial_length > 0 ) {
 		$trial_labels = [
 			'day'   => sprintf( _n( '%d-day',   '%d-day',   $trial_length, 'mmi-subscriptions' ), $trial_length ),
@@ -300,6 +392,43 @@ function mmisub_get_price_string( WC_Product $product, string $price_html ): str
 	}
 
 	return apply_filters( 'mmisub_product_price_string', $price_string, $product, $price_html );
+}
+
+/**
+ * Returns the sign-up fee and trial a product's price text may promise. A variable
+ * subscription promises one only when every variation bills it, so the product
+ * page never offers a fee or trial that checkout won't apply to the chosen variation.
+ *
+ * @param  WC_Product $product
+ * @return array{sign_up_fee: float, trial_length: int, trial_period: string}
+ */
+function mmisub_get_promised_terms( WC_Product $product ): array {
+	$children = $product->is_type( 'mmi_variable_subscription' ) ? $product->get_children() : [];
+	if ( ! $children ) {
+		return [
+			'sign_up_fee'  => MMI_Subscriptions_Product::get_sign_up_fee( $product ),
+			'trial_length' => MMI_Subscriptions_Product::get_trial_length( $product ),
+			'trial_period' => MMI_Subscriptions_Product::get_trial_period( $product ),
+		];
+	}
+
+	update_meta_cache( 'post', $children );
+	$fees   = [];
+	$trials = [];
+	foreach ( $children as $child_id ) {
+		$fees[ MMI_Subscriptions_Product::normalize( '_subscription_sign_up_fee', MMI_Subscriptions_Product::variation_term( (int) $child_id, $product->get_id(), '_subscription_sign_up_fee' ) ) ] = true;
+
+		$length = (int) MMI_Subscriptions_Product::variation_term( (int) $child_id, $product->get_id(), '_subscription_trial_length' );
+		$period = MMI_Subscriptions_Product::normalize( '_subscription_trial_period', MMI_Subscriptions_Product::variation_term( (int) $child_id, $product->get_id(), '_subscription_trial_period' ) );
+		$trials[ $length > 0 ? $length . ' ' . $period : '0' ] = true;
+	}
+
+	$trial = 1 === count( $trials ) ? explode( ' ', (string) array_key_first( $trials ) ) : [ '0' ];
+	return [
+		'sign_up_fee'  => 1 === count( $fees ) ? (float) array_key_first( $fees ) : 0.0,
+		'trial_length' => (int) $trial[0],
+		'trial_period' => $trial[1] ?? 'day',
+	];
 }
 
 // ── Subscription length range helper ────────────────────────────────────────
@@ -544,7 +673,8 @@ add_action( 'woocommerce_product_options_general_product_data', static function 
 	// Mirrors WCS layout: price input + interval select + period select inside
 	// a single <span class="wrap"> in one <p> tag.
 	// A variable subscription's price lives on each variation, so its parent shows
-	// only the billing period here (still read for the "/ year" price suffix).
+	// only the billing period here. The terms in this block apply to every variation
+	// that leaves its own blank (MMI_Subscriptions_Product::INHERITED_TERMS).
 	?>
 	<p class="form-field _subscription_price_fields _subscription_price_field">
 		<label for="_subscription_price" class="hide_if_mmi_variable_subscription"><?php echo esc_html( sprintf( /* translators: %s currency symbol */ __( 'Subscription price (%s)', 'mmi-subscriptions' ), get_woocommerce_currency_symbol() ) ); ?></label>
@@ -569,7 +699,7 @@ add_action( 'woocommerce_product_options_general_product_data', static function 
 				<?php endforeach; ?>
 			</select>
 		</span>
-		<span class="description show_if_mmi_variable_subscription hidden"><?php esc_html_e( 'Each variation has its own price. Set prices on the Variations tab.', 'mmi-subscriptions' ); ?></span>
+		<span class="description show_if_mmi_variable_subscription hidden"><?php esc_html_e( 'Set prices on the Variations tab. These billing settings apply to every variation that doesn\'t set its own.', 'mmi-subscriptions' ); ?></span>
 	</p>
 	<?php
 
@@ -780,8 +910,19 @@ add_action( 'woocommerce_product_after_variable_attributes', static function ( i
 		wc_help_tip( __( 'Charge the price below once. No subscription is created and nothing renews; the period, length, sign-up fee and trial fields are ignored.', 'mmi-subscriptions' ) )
 	);
 
+	printf(
+		'<p class="form-row form-row-full description">%s</p>',
+		esc_html__( 'Leave a billing field blank to use the product\'s setting on the General tab (shown in grey).', 'mmi-subscriptions' )
+	);
+
+	// A blank inherited field shows the product's value as its placeholder, the way
+	// WooCommerce shows the parent's SKU and weight on a variation.
+	$parent_id = $variation->post_parent;
 	foreach ( $fields as $meta_key => $field ) {
-		$value = get_post_meta( $variation->ID, $meta_key, true );
+		$value       = get_post_meta( $variation->ID, $meta_key, true );
+		$placeholder = isset( MMI_Subscriptions_Product::INHERITED_TERMS[ $meta_key ] )
+			? MMI_Subscriptions_Product::normalize( $meta_key, (string) get_post_meta( $parent_id, $meta_key, true ) )
+			: $field['placeholder'];
 		printf(
 			'<p class="form-row form-row-first"><label>%s</label><input type="%s" name="%s[%d]" value="%s" placeholder="%s" step="any" class="short"></p>',
 			esc_html( $field['label'] ),
@@ -789,7 +930,7 @@ add_action( 'woocommerce_product_after_variable_attributes', static function ( i
 			esc_attr( $meta_key ),
 			(int) $loop,
 			esc_attr( $value ),
-			esc_attr( $field['placeholder'] )
+			esc_attr( $placeholder )
 		);
 	}
 }, 10, 3 );
@@ -954,3 +1095,93 @@ add_action( 'woocommerce_before_product_object_save', static function ( WC_Produ
 	$product->set_regular_price( $sub_price );
 	$product->set_price( $sub_price );
 } );
+
+// ── Variation terms follow their product (2.9.0) ─────────────────────────────
+
+/** MMI_Settings key set once the variation-terms migration has run on this site. */
+const MMISUB_VARIATION_TERMS_MIGRATED = 'mmi_subs_variation_terms_migrated';
+
+/**
+ * Before 2.9.0 a variation never read its product's billing terms, so every
+ * variation carried its own copy. This blanks each copy that bills the same as the
+ * product's (it follows the General tab from now on) and writes out each blank one
+ * whose old default bills differently from the product's, so no variation bills
+ * differently after the update than before it. Runs once per site, on 'init' so no
+ * checkout can come before it, under a database lock so two requests can't both run it.
+ */
+add_action( 'init', static function () {
+	if ( mmisub_get_option( MMISUB_VARIATION_TERMS_MIGRATED ) || ! function_exists( 'wc_get_products' ) ) {
+		return;
+	}
+
+	global $wpdb;
+	if ( '1' !== (string) $wpdb->get_var( "SELECT GET_LOCK('mmisub_variation_terms', 0)" ) ) {
+		return; // Another request is running it.
+	}
+
+	MMI_Settings::clear_cache(); // The request that held the lock may have finished it.
+	if ( ! mmisub_get_option( MMISUB_VARIATION_TERMS_MIGRATED ) ) {
+		mmisub_migrate_variation_terms();
+	}
+	$wpdb->query( "SELECT RELEASE_LOCK('mmisub_variation_terms')" );
+}, 20 );
+
+/**
+ * The migration itself. Callers hold the lock.
+ *
+ * @return void
+ */
+function mmisub_migrate_variation_terms(): void {
+	$parents = wc_get_products( [
+		'type'   => 'mmi_variable_subscription',
+		'status' => array_keys( get_post_statuses() ),
+		// audit-ok: ids only, variable subscription products (dozens on a store); runs once per site
+		'limit'  => -1,
+		'return' => 'ids',
+	] );
+
+	$followed = 0;
+	$pinned   = 0;
+	if ( $parents ) {
+		// Not get_posts( 'fields' => 'id=>parent' ): served from WordPress's query cache
+		// it keys rows "post_parent:<ID>" (seen on 7.1.5), which absint() reads as 0.
+		global $wpdb;
+		$parents = array_map( 'intval', $parents );
+		$rows    = $wpdb->get_results(
+			$wpdb->prepare(
+				// audit-ok: id/parent pairs for the products above only; runs once per site
+				"SELECT ID, post_parent FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND post_parent IN (" . implode( ',', array_fill( 0, count( $parents ), '%d' ) ) . ')',
+				$parents
+			)
+		);
+		$variations = []; // variation ID => product ID
+		foreach ( $rows as $row ) {
+			$variations[ (int) $row->ID ] = (int) $row->post_parent;
+		}
+		update_meta_cache( 'post', array_merge( $parents, array_keys( $variations ) ) );
+
+		foreach ( $variations as $variation_id => $parent_id ) {
+			foreach ( array_keys( MMI_Subscriptions_Product::INHERITED_TERMS ) as $key ) {
+				$own    = (string) get_post_meta( $variation_id, $key, true );
+				$before = MMI_Subscriptions_Product::normalize( $key, $own );
+				$follow = MMI_Subscriptions_Product::normalize( $key, (string) get_post_meta( $parent_id, $key, true ) );
+
+				if ( $before === $follow ) {
+					if ( '' !== $own ) {
+						update_post_meta( $variation_id, $key, '' );
+						++$followed;
+					}
+				} elseif ( '' === $own ) {
+					update_post_meta( $variation_id, $key, $before );
+					++$pinned;
+				}
+			}
+		}
+	}
+
+	MMI_Settings::set( MMISUB_VARIATION_TERMS_MIGRATED, time() );
+
+	$counts = [ 'products' => count( $parents ), 'terms_now_following_product' => $followed, 'terms_kept_on_variation' => $pinned ];
+	MMI_Logger::info( 'Variable subscription variations now follow their product\'s billing terms.', $counts, 'general', 'mmi-subscriptions' );
+	mmisub_audit( 'product.variation_terms_migrate', [ 'object_type' => 'product', 'outcome' => 'success', 'details' => $counts ] );
+}

@@ -111,7 +111,7 @@ class MMI_Subscriptions_Checkout {
 		$period       = MMI_Subscriptions_Product::get_period( $product );
 		$interval     = MMI_Subscriptions_Product::get_interval( $product );
 		$length       = MMI_Subscriptions_Product::get_length( $product );
-		$trial_length = MMI_Subscriptions_Product::get_trial_length( $product );
+		$trial_length = MMI_Subscriptions_Product::get_trial_length( $product, $item );
 		$trial_period = MMI_Subscriptions_Product::get_trial_period( $product );
 		$sign_up_fee  = MMI_Subscriptions_Product::get_sign_up_fee( $product );
 		$price        = (float) MMI_Subscriptions_Product::get_price( $product );
@@ -202,7 +202,7 @@ class MMI_Subscriptions_Checkout {
 		// If renewal synchronisation is enabled and the product has a sync day,
 		// override next_payment with the calculated sync date (after any trial).
 		if ( 'yes' === mmisub_get_option( 'mmi_subs_sync_enabled', 'no' ) ) {
-			$sync_day = (int) $product->get_meta( '_subscription_payment_sync_date', true );
+			$sync_day = MMI_Subscriptions_Product::get_payment_sync_date( $product );
 			if ( $sync_day > 0 ) {
 				$calc_from = ( $trial_length > 0 && $trial_period ) ? $dates['trial_end'] : $now;
 				$sync_ts   = mmisub_calculate_sync_date( $period, $sync_day, $calc_from );
@@ -283,8 +283,9 @@ class MMI_Subscriptions_Checkout {
 			$first_payment_after   = $trial_end;
 		}
 
-		// Next payment = first period after trial (or start).
-		$next_payment           = mmisub_calculate_next_payment_date( $period, $interval, $first_payment_after );
+		// A trial is the free part of the first period: the first payment is due the day
+		// it ends. Without one, today's payment covers a period and the next follows it.
+		$next_payment           = $dates['trial_end'] ?: mmisub_calculate_next_payment_date( $period, $interval, $first_payment_after );
 		$dates['next_payment'] = $next_payment;
 
 		// End date = start + (length × period × interval), or 0 if unlimited.
