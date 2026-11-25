@@ -6,7 +6,7 @@
  *              Mirrors WooCommerce Subscriptions logic independently — no WCS required.
  *              Supports any WCS-compatible payment gateway, free trials, plan switching,
  *              and full customer self-service via My Account.
- * Version: 2.9.0
+ * Version: 2.9.1
  * License:     GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Author:      MannMade Solutions
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'MMI_SUBSCRIPTIONS_VERSION',    '2.9.0' );
+define( 'MMI_SUBSCRIPTIONS_VERSION',    '2.9.1' );
 define( 'MMI_SUBSCRIPTIONS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'MMI_SUBSCRIPTIONS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'MMI_SUBSCRIPTIONS_FILE',       __FILE__ );
@@ -35,10 +35,9 @@ define( 'MMISUB_ONE_TIME_META', '_mmi_one_time_purchase' );
 
 // ── MMI Shared Library (ADR-0006, mmi-admin/docs/decisions/) ────────
 // Registers this plugin's bundled copy of MMI_Settings/MMI_Logger as a
-// version-negotiation candidate — resolves with or without mmi-hub present.
+// version-negotiation candidate; the newest bundled copy across the suite wins.
 // Must load before anything below could reference either class name (the
 // activation-hook and plugins_loaded gates just below both do).
-// See MMI_HUB_ELIMINATION_HANDOFF.md, Phase 2.
 require_once MMI_SUBSCRIPTIONS_PLUGIN_DIR . 'includes/mmi-shared/bootstrap.php';
 
 /* ── Class autoloader ───────────────────────────────────────────────────── */
@@ -205,11 +204,10 @@ add_filter( 'woocommerce_order_class', static function ( string $class, string $
 /* ── Activation / deactivation hooks ───────────────────────────────────── */
 
 register_activation_hook( __FILE__, static function (): void {
-	// MMI_Hub is no longer a hard requirement (ADR-0006 / MMI_HUB_ELIMINATION_HANDOFF.md,
-	// Phase 2): Settings/Logger are now bundled in this plugin's own includes/mmi-shared/
-	// and resolve with or without mmi-hub present. Licensing (MMI_License_Manager, now
-	// hosted in mmi-admin) already degrades gracefully via its own class_exists() checks
-	// in MMI_Subscription_License_Bridge::init() — not blocked here.
+	// Settings/Logger come from the bundled includes/mmi-shared/ (ADR-0006).
+	// Licensing (MMI_License_Manager, hosted in mmi-admin) degrades gracefully via
+	// its own class_exists() checks in MMI_Subscription_License_Bridge::init() —
+	// not blocked here. WooCommerce is the only hard dependency.
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		deactivate_plugins( plugin_basename( __FILE__ ) );
 		wp_die(
@@ -234,8 +232,7 @@ register_deactivation_hook( __FILE__, static function (): void {
 /* ── Main bootstrap on plugins_loaded ──────────────────────────────────── */
 
 add_action( 'plugins_loaded', static function (): void {
-	// See the activation-hook comment above — MMI_Hub is intentionally no longer
-	// checked here (ADR-0006, Phase 2 of the mmi-hub-elimination migration).
+	// See the activation-hook comment above — WooCommerce is the only hard dependency.
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		add_action( 'admin_notices', static function (): void {
 			echo '<div class="notice notice-error"><p>';

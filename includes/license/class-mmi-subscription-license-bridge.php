@@ -3,7 +3,7 @@
  * MMI Subscription License Bridge
  *
  * Connects MMI Subscription lifecycle events to the MMI License Manager in
- * mmi-hub.  Decoupled via action hooks so neither plugin creates a hard
+ * mmi-admin.  Decoupled via action hooks so neither plugin creates a hard
  * dependency on the other.
  *
  * Responsibilities:
@@ -24,12 +24,12 @@ class MMI_Subscription_License_Bridge {
 	// ── Bootstrap ─────────────────────────────────────────────────────────────
 
 	public static function init(): void {
-		// Only wire up if mmi-hub License Manager is present.
+		// Only wire up if the MMI License Manager is present.
 		if ( ! class_exists( 'MMI_License_Manager' ) ) {
 			return;
 		}
 
-		// mmi-hub's MMI_Subscription_License_Adapter owns all subscription-to-license
+		// mmi-admin's MMI_Subscription_License_Adapter owns all subscription-to-license
 		// wiring when it is loaded. Nothing to do here in that case.
 		if ( defined( 'MMI_SUBSCRIPTION_ADAPTER_LOADED' ) ) {
 			return;
@@ -55,7 +55,7 @@ class MMI_Subscription_License_Bridge {
 
 	/**
 	 * When a new subscription is created at checkout, copy the license key that
-	 * mmi-hub placed on the parent order onto the subscription record.
+	 * the license manager placed on the parent order onto the subscription record.
 	 *
 	 * @param  MMI_Subscription         $subscription
 	 * @param  WC_Order                 $order

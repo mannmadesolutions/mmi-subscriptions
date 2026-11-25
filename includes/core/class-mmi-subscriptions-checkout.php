@@ -20,7 +20,7 @@ class MMI_Subscriptions_Checkout {
 	// ── Bootstrap ─────────────────────────────────────────────────────────────
 
 	public static function init(): void {
-		// Hook late so other plugins (mmi-hub license bridge) run first.
+		// Hook late so other plugins (mmi-admin's license handling) run first.
 		add_action( 'woocommerce_checkout_order_processed',       [ self::class, 'process_checkout' ], 100, 2 );
 		add_action( 'woocommerce_store_api_checkout_order_processed', [ self::class, 'process_checkout_block' ], 100, 1 );
 	}
@@ -177,7 +177,7 @@ class MMI_Subscriptions_Checkout {
 			$subscription->update_meta_data( '_mmi_billing_interval', $billing_interval );
 		}
 
-		// Link subscription back to mmi-hub license key (written by mmi-hub at priority 10).
+		// Link subscription back to the suite license key (written to the order at priority 10).
 		$license_key = $order->get_meta( '_mmi_suite_license_key', true );
 		if ( $license_key ) {
 			$subscription->update_meta_data( '_mmi_suite_license_key', $license_key );
